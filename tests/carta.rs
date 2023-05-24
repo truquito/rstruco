@@ -105,15 +105,24 @@ fn es_num_pieza_test() {
   assert_eq!(false, c.es_numericamente_pieza());
 }
 
-use rand::{SeedableRng, Rng, rngs::StdRng};
+use std::hash::Hash;
+use std::collections::HashSet;
+
+fn has_unique_elements<T>(iter: T) -> bool
+where
+    T: IntoIterator,
+    T::Item: Eq + Hash,
+{
+    let mut uniq = HashSet::new();
+    iter.into_iter().all(move |x| uniq.insert(x))
+}
+
 
 #[test]
 fn get_cartas_random_test() {
-  let seed = 9998;
-  let mut _rng: StdRng = SeedableRng::seed_from_u64(seed);
-  println!("With seed {}, the first random u8 is: {}", seed, _rng.gen::<u8>());
-  let cs = get_cartas_random(4);
-  for c in cs {
-    println!("{}", c)
-  }
+  let cs = get_cartas_random(5);
+  // for c in cs {
+  //   println!("{}", c)
+  // }
+  assert!(has_unique_elements(cs))
 }

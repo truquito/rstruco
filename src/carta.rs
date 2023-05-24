@@ -11,7 +11,7 @@ pub const PRIMES: &'static [usize] = &[
 ];
 
 
-#[derive(Debug, Deserialize, Serialize, PartialEq, Copy, Clone)]
+#[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Copy, Clone, Hash)]
 #[serde(rename_all = "lowercase")]
 pub enum Palo {
   Basto,
@@ -52,7 +52,7 @@ impl fmt::Display for Palo {
   }
 }
 
-#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Hash)]
 #[serde(rename_all = "lowercase")]
 pub struct Carta {
   pub valor: usize,
