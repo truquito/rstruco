@@ -2,8 +2,8 @@ use std::fmt;
 use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
 
-// u8 ~ (0..=255)
-pub const PRIMES: &'static [u8] = &[
+// usize ~ (0..=255)
+pub const PRIMES: &'static [usize] = &[
   2, 3, 5, 7, 11, 13, 17, 19, 23, 29, // Basto
   31, 37, 41, 43, 47, 53, 59, 61, 67, 71, // Copa
   73, 79, 83, 89, 97, 101, 103, 107, 109, 113, // Espada
@@ -21,7 +21,7 @@ pub enum Palo {
 }
 
 impl Palo {
-  pub fn to_int(&self) -> u8 {
+  pub fn to_int(&self) -> usize {
     match self {
       Palo::Basto  => 0,
       Palo::Copa   => 1,
@@ -55,13 +55,13 @@ impl fmt::Display for Palo {
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub struct Carta {
-  pub valor: u8,
+  pub valor: usize,
   pub palo: Palo,
 }
 
 impl Carta {
   // constructor
-  pub fn new(valor: u8, palo: &str) -> Result<Carta, &str> {
+  pub fn new(valor: usize, palo: &str) -> Result<Carta, &str> {
     if (8..=9).contains(&valor) || !(1 <= valor && valor <= 12) {
       return Err("Valor invalido")
     }
@@ -74,14 +74,14 @@ impl Carta {
     )
   }
 
-  pub fn id(&self) -> u8 {
+  pub fn id(&self) -> usize {
     let mut id = 10 * self.palo.to_int();
     id += self.valor - 1;
     if self.valor >= 10 { id -= 2; }
     id 
   }
 
-  pub fn puid(&self) -> u8 {
+  pub fn puid(&self) -> usize {
     return PRIMES[self.id() as usize]
   }
 
@@ -113,7 +113,7 @@ impl Carta {
     false
   }
 
-  pub fn calc_puntaje(&self, muestra: &Carta) -> u8 {
+  pub fn calc_puntaje(&self, muestra: &Carta) -> usize {
     if self.es_pieza(muestra) {
       match self.valor {
         2       => 30,
@@ -140,7 +140,7 @@ impl Carta {
     }
   }
 
-  pub fn calc_poder(&self, muestra: &Carta) -> u8 {
+  pub fn calc_poder(&self, muestra: &Carta) -> usize {
     if self.es_pieza(muestra) {
       match self.valor {
         2  => 34,
@@ -188,7 +188,7 @@ impl fmt::Display for Carta {
   }
 }
 
-fn carta_from_id(id: u8) -> Carta {
+fn carta_from_id(id: usize) -> Carta {
   // valor
   let ultimo_digito = id % 10;
   let valor = 
@@ -203,9 +203,9 @@ fn carta_from_id(id: u8) -> Carta {
   Carta{ valor, palo }
 }
 
-pub fn get_cartas_random(n: u8) -> Vec<Carta> {
+pub fn get_cartas_random(n: usize) -> Vec<Carta> {
   let max_carta_id = 40;
-  let mut indices: Vec<u8> = (0..max_carta_id).collect();
+  let mut indices: Vec<usize> = (0..max_carta_id).collect();
   let mut rng = rand::thread_rng();
   indices.shuffle(&mut rng);
   indices[0..n as usize]
