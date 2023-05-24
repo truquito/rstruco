@@ -8,6 +8,15 @@ pub enum Equipo {
   Rojo,
 }
 
+impl Equipo {
+  pub fn equipo_contrario(self) -> Equipo {
+    match self {
+      Equipo::Azul => Equipo::Rojo,
+      Equipo::Rojo => Equipo::Azul,
+    }
+  }
+}
+
 impl fmt::Display for Equipo {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
      match self {
