@@ -9,7 +9,7 @@ pub enum Equipo {
 }
 
 impl Equipo {
-  pub fn equipo_contrario(self) -> Equipo {
+  pub fn equipo_contrario(&self) -> Equipo {
     match self {
       Equipo::Azul => Equipo::Rojo,
       Equipo::Rojo => Equipo::Azul,
