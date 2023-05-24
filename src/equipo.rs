@@ -1,4 +1,4 @@
-enum Equipo {
-  Azul,
-  Rojo,
-}
+// enum Equipo {
+//   Azul,
+//   Rojo,
+// }
