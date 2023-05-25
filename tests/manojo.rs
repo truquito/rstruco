@@ -32,7 +32,6 @@ fn manojo_test() {
   println!("{:?}", m);
 }
 
-
 #[test]
 fn cant_tiradas_test() {
   let m = Manojo{
