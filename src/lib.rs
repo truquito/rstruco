@@ -9,7 +9,7 @@ mod carta;
 mod manojo;
 mod mano;
 mod truco;
-// mod envite;
+mod envite;
 
 // `use` ~ import without namespace
 // `pub` ~ export
@@ -19,4 +19,4 @@ pub use carta::{*};
 pub use manojo::{*};
 pub use mano::{*};
 pub use truco::{*};
-// pub use envite::{*};
+pub use envite::{*};
