@@ -6,9 +6,13 @@ pub fn add(left: usize, right: usize) -> usize {
 mod equipo;
 mod jugador;
 mod carta;
+mod manojo;
+mod mano;
 
 // `use` ~ import without namespace
 // `pub` ~ export
 pub use equipo::{*};
 pub use jugador::{*};
 pub use carta::{*};
+pub use manojo::{*};
+pub use mano::{*};
