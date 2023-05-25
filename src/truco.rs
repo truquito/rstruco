@@ -1,7 +1,8 @@
 use std::fmt;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Copy, Clone)]
+#[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Copy, Clone, Ord, 
+  PartialOrd)]
 #[serde(rename_all = "camelCase")]
 pub enum EstadoTruco {
   NoCantado,
