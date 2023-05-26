@@ -1,4 +1,4 @@
 fn main() {
-  let result = truco::add(2, 3);
-  println!("maining {}!!!!", result);
+  let result = truco::Partida{};
+  println!("main1 {:?}!!!!", result);
 }
