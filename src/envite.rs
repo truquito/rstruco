@@ -1,8 +1,6 @@
 use std::fmt;
 use serde::{Deserialize, Serialize};
 
-use crate::Manojo;
-
 #[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Copy, Clone, Ord, 
   PartialOrd)]
 #[serde(rename_all = "camelCase")]
@@ -32,6 +30,8 @@ impl fmt::Display for EstadoEnvite {
   }
 }
 
+/*
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Envite<'a> {
   pub estado: EstadoEnvite,
@@ -44,7 +44,22 @@ pub struct Envite<'a> {
   pub sin_cantar: Vec<String>,
 }
 
-impl Envite<'_> {
+*/
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Envite {
+  pub estado: EstadoEnvite,
+  pub puntaje: usize,
+  pub cantado_por: String,
+  #[serde(skip_deserializing, skip_serializing)]
+  pub jugadores_con_flor: Vec<String>,
+  pub sin_cantar: Vec<String>,
+}
+
+// si se usa `jugadores_con_flor` con referencias
+// impl Envite<'_> {
+
+impl Envite {
   pub fn no_canto_flor_aun(&self, j:&String) -> bool {
     self.sin_cantar.contains(j)
   }

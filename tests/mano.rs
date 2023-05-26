@@ -41,7 +41,7 @@ fn mano_json_test(){
       carta: Carta::new(2, "copa").unwrap()
     }
   );
-  let json = serde_json::to_string(&m).unwrap();
-  println!("the JSON is: {}", json);
+  let _json = serde_json::to_string(&m).unwrap();
+  // println!("the JSON is: {}", _json);
   assert!(m.cartas_tiradas.len() == 1);
 }
