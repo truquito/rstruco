@@ -60,6 +60,24 @@ pub struct Envite {
 // impl Envite<'_> {
 
 impl Envite {
+  pub fn new(con_flor: Vec<String>) -> Envite {
+    let sin_cantar = con_flor.clone();
+    Envite{
+      estado: EstadoEnvite::NoCantadoAun,
+      puntaje: 0,
+      cantado_por: String::from(""),
+      jugadores_con_flor: con_flor,
+      sin_cantar: sin_cantar,
+    }
+  }
+
+  pub fn reset(&mut self) {
+    // OJO: no le resetea `.jugadores_con_flor` y `sin_cantar` !!
+    self.estado = EstadoEnvite::NoCantadoAun;
+    self.puntaje = 0;
+    self.cantado_por = String::from("");
+  }
+
   pub fn no_canto_flor_aun(&self, j:&String) -> bool {
     self.sin_cantar.contains(j)
   }

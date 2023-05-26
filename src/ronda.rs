@@ -3,14 +3,13 @@ use std::collections::HashSet;
 use std::iter;
 use serde::{Deserialize, Serialize};
 
-use crate::get_cartas_random;
 use crate::mano::{NumMano};
 use crate::jugador::{Jugador};
 use crate::equipo::{Equipo};
-use crate::envite::{Envite, EstadoEnvite};
-use crate::truco::{Truco, EstadoTruco};
+use crate::envite::{Envite};
+use crate::truco::{Truco};
 use crate::manojo::{Manojo};
-use crate::carta::{Carta};
+use crate::carta::{Carta, get_cartas_random};
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -106,8 +105,6 @@ impl Ronda {
         .map(|m| m.jugador.id.clone())
         .collect::<Vec<String>>();
     
-    let sin_cantar = con_flor.clone();     
-
     Ok(
       Ronda{
         mano_en_juego: NumMano::Primera,
@@ -120,18 +117,76 @@ impl Ronda {
         manojos: manojos,
         muestra: muestra,
         mixs: mixs,
-        envite: Envite {
-          estado: EstadoEnvite::NoCantadoAun,
-          puntaje: 0,
-          cantado_por: String::from(""),
-          jugadores_con_flor: con_flor,
-          sin_cantar: sin_cantar,
-        },
-        truco: Truco{
-          cantado_por: String::from(""),
-          estado: EstadoTruco::NoCantado,
-        },
+        envite: Envite::new(con_flor),
+        truco: Truco::new(),
       }
     )
+  }
+
+  pub fn indexar_manojos(&mut self) {
+    self.mixs =
+      self.manojos
+        .iter()
+        .map(|m| &m.jugador)
+        .enumerate()
+        .map(|(ix,j)| (j.id.clone(), ix))
+        .collect();
+  }
+
+  pub fn get_flores(&self) -> (bool, Vec<&Manojo>) {
+    let manojos_con_flor = 
+      self.manojos
+        .iter()
+        .filter(|m| m.tiene_flor(&self.muestra).0)
+        .collect::<Vec<&Manojo>>();
+
+    (manojos_con_flor.len() > 0, manojos_con_flor)
+  }
+
+  pub fn cachear_flores(&mut self, reset: bool) {
+    self.envite.jugadores_con_flor =
+      self
+        .get_flores()
+        .1
+        .iter()
+        .map(|m| m.jugador.id.clone())
+        .collect::<Vec<String>>();
+    if reset {
+      self.envite.sin_cantar = self.envite.jugadores_con_flor.clone();
+    }
+  }
+
+  // reparte 3 cartas a cada jugador
+  // ademas reparte una muestra
+  // resetea las `tiradas` y el `se_fue_al_mazo` de cada manojo
+  pub fn repartir_cartas(&mut self) {
+    let cant_jugadores = self.manojos.len();
+    let num_jugs_por_equipo = cant_jugadores / 2;
+    let mut cartas = get_cartas_random(num_jugs_por_equipo * 2 * 3 + 1);
+    self.muestra = cartas.pop().unwrap();
+    for m in &mut self.manojos {
+      m.se_fue_al_mazo = false;
+      // m.tiradas = [false;3];
+      m.tiradas.iter_mut().for_each(|i| *i = false);
+      for i in 0..3 {
+        m.cartas[i] = cartas.pop().unwrap()
+      }
+    }
+  }
+
+  pub fn nueva_ronda(&mut self, el_mano: usize) {
+    let cant_jugadores = self.manojos.len();
+    let num_jugs_por_equipo = cant_jugadores / 2;
+
+    self.mano_en_juego = NumMano::Primera;
+    self.cant_jugadores_en_juego.insert(Equipo::Azul, num_jugs_por_equipo);
+    self.cant_jugadores_en_juego.insert(Equipo::Rojo, num_jugs_por_equipo);
+    self.el_mano = el_mano;
+    self.turno = el_mano;
+    self.repartir_cartas();
+    self.envite.reset();
+    self.cachear_flores(true);
+    self.truco.reset();
+    // self.manos = make([]Mano, 3)
   }
 }
