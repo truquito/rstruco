@@ -53,3 +53,16 @@ impl Mano {
     self.cartas_tiradas.push(carta_tirada);
   }
 }
+
+impl Default for Mano {
+  fn default() -> Mano {
+    Mano{
+      cartas_tiradas: Vec::<CartaTirada>::new(),
+      resultado: crate::Resultado::Indeterminado,
+      ganador: String::from(""),
+    }
+  }
+}
+
+// se puede usar como: (a-la javascript)
+// let m = Mano { ganador: String::from("pepe"), ..Default::default() };

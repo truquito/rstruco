@@ -29,6 +29,7 @@ fn ronda_manual_json_test(){
     manojos: Vec::new(),
     muestra: Carta::new(4, "copa").unwrap(),
     mixs: HashMap::new(),
+    manos: Default::default(),
   };
 
   let _json = serde_json::to_string(&r).unwrap();

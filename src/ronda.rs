@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use std::iter;
 use serde::{Deserialize, Serialize};
 
-use crate::mano::{NumMano};
+use crate::mano::{NumMano, Mano};
 use crate::jugador::{Jugador};
 use crate::equipo::{Equipo};
 use crate::envite::{Envite};
@@ -29,7 +29,7 @@ use crate::carta::{Carta, get_cartas_random};
   pub manojos: Vec<Manojo>,
   pub muestra: Carta,
   
-  // pub manos: [Mano; 3],
+  pub manos: [Mano; 3],
   
   // otros
   #[serde(skip_deserializing, skip_serializing)]
@@ -128,6 +128,7 @@ impl Ronda {
         mixs: mixs,
         envite: Envite::new(con_flor),
         truco: Truco::new(),
+        manos: Default::default(),
       }
     )
   }
@@ -199,4 +200,31 @@ impl Ronda {
     self.truco.reset();
     // self.manos = make([]Mano, 3)
   }
+
+  pub fn get_el_mano(&self) -> &Manojo {
+    &self.manojos[self.el_mano]
+  }
+
+  pub fn get_siguiente(&self, m: &Manojo) -> &Manojo {
+    let idx = self.mixs[&m.jugador.id];
+    let cant_jugadores = self.manojos.len();
+    let es_el_ultimo = idx == cant_jugadores - 1;
+    match es_el_ultimo {
+      true => &self.manojos[0],
+      false => &self.manojos[idx+1],
+    }
+  }
+
+  pub fn get_sig_el_mano(&self) -> usize {
+    let m = self.get_el_mano();
+    let s = self.get_siguiente(m);
+    self.mixs[&s.jugador.id]
+  }
+
+  pub fn get_el_turno(&self) -> &Manojo {
+    &self.manojos[self.turno]
+  }
+
+  // pub fn get_mano_anterior() -> {
+  // }
 }
