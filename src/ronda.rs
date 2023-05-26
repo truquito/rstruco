@@ -40,9 +40,8 @@ use crate::carta::{Carta, get_cartas_random};
 
 // impl<'a> Ronda<'a> { // <- si se usa `jugadores_con_flor` con referencias
 impl Ronda {
-  pub fn new(azules: Vec<String>, rojos: Vec<String>) -> Result<Ronda, &'static str> {
-    let cant_jugadores_por_equipo = azules.len();
 
+  fn check_inputs(azules: &[String], rojos: &[String]) -> Result<(), &'static str> {
     // checkeo que no hayan repetidos
     let uniques = [&azules[..], &rojos[..]]
       .concat()
@@ -61,6 +60,16 @@ impl Ronda {
     if !ok {
       return Err("La cantidad de jugadores es inválida");
     }
+
+    Ok(())
+  }
+
+  pub fn new(azules: Vec<String>, rojos: Vec<String>) -> Result<Ronda, &'static str> {
+    if let Err(msg) = Ronda::check_inputs(&azules[..], &rojos[..]) {
+      return Err(msg);
+    }
+    
+    let cant_jugadores_por_equipo = azules.len();
 
     // paso a crear los jugadores + manojos(+cartas)
     let mut cartas = get_cartas_random(cant_jugadores_por_equipo * 2 * 3 + 1);
@@ -174,6 +183,7 @@ impl Ronda {
     }
   }
 
+  // el "reset" de `ronda`
   pub fn nueva_ronda(&mut self, el_mano: usize) {
     let cant_jugadores = self.manojos.len();
     let num_jugs_por_equipo = cant_jugadores / 2;
