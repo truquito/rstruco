@@ -3,7 +3,8 @@ use std::collections::HashSet;
 use std::iter;
 use serde::{Deserialize, Serialize};
 
-use crate::mano::{NumMano, Mano};
+// use crate::enco;
+use crate::mano::{NumMano, Mano, Resultado};
 use crate::jugador::{Jugador};
 use crate::equipo::{Equipo};
 use crate::envite::{Envite};
@@ -36,7 +37,14 @@ use crate::carta::{Carta, get_cartas_random};
   pub mixs: HashMap<String, usize>,
 }
 
-
+// cambio de variable
+fn cv(x: usize, mano: usize, cant_jugadores: usize) -> usize {
+  if x >= mano {
+    x - mano
+  } else {
+    x + (cant_jugadores - mano)
+  }
+}
 
 // impl<'a> Ronda<'a> { // <- si se usa `jugadores_con_flor` con referencias
 impl Ronda {
@@ -153,6 +161,17 @@ impl Ronda {
     (manojos_con_flor.len() > 0, manojos_con_flor)
   }
 
+  pub fn get_la_flor_mas_alta(&self) -> &Manojo {
+    self.manojos
+      .iter()
+      .map(|m| (m, m.tiene_flor(&self.muestra).1))
+      // .collect::<Vec<(&Manojo, isize)>>()
+      // .into_iter()
+      .max_by(|a, b| a.1.cmp(&b.1))
+      .unwrap()
+      .0
+  }
+
   pub fn cachear_flores(&mut self, reset: bool) {
     self.envite.jugadores_con_flor =
       self
@@ -205,16 +224,6 @@ impl Ronda {
     &self.manojos[self.el_mano]
   }
 
-  pub fn get_siguiente(&self, m: &Manojo) -> &Manojo {
-    let idx = self.mixs[&m.jugador.id];
-    let cant_jugadores = self.manojos.len();
-    let es_el_ultimo = idx == cant_jugadores - 1;
-    match es_el_ultimo {
-      true => &self.manojos[0],
-      false => &self.manojos[idx+1],
-    }
-  }
-
   pub fn get_sig_el_mano(&self) -> usize {
     let m = self.get_el_mano();
     let s = self.get_siguiente(m);
@@ -225,6 +234,129 @@ impl Ronda {
     &self.manojos[self.turno]
   }
 
-  // pub fn get_mano_anterior() -> {
-  // }
+  pub fn get_mano_anterior(&self) -> &Mano {
+    &self.manos[self.mano_en_juego as usize - 1]
+  }
+
+  pub fn get_mano_actual(&self) -> &Mano {
+    &self.manos[self.mano_en_juego as usize]
+  }
+
+  pub fn get_sig(&self, j:usize) -> usize {
+    let cant_jugadores = self.manojos.len();
+    let es_el_ultimo = j == cant_jugadores - 1;
+    if es_el_ultimo {0} else {j + 1}
+  }
+
+  pub fn get_siguiente(&self, m: &Manojo) -> &Manojo {
+    let idx = self.mixs[&m.jugador.id];
+    let cant_jugadores = self.manojos.len();
+    let es_el_ultimo = idx == cant_jugadores - 1;
+    match es_el_ultimo {
+      true => &self.manojos[0],
+      false => &self.manojos[idx+1],
+    }
+  }
+
+  pub fn get_siguiente_habilitado<'a>(&'a self, m: &'a Manojo) -> Option<&Manojo> {
+    let mut sig = m;
+    let n = self.manojos.len();
+    for _ in 0..n {
+      sig = self.get_siguiente(sig);
+      let no_se_fue_al_mazo = !sig.se_fue_al_mazo;
+      let ya_tiro_carta_en_esta_mano = sig.ya_tiro_carta(self.mano_en_juego);
+      let no_es_el = sig.jugador.id != m.jugador.id;
+      let ok = no_se_fue_al_mazo && (!ya_tiro_carta_en_esta_mano) && no_es_el;
+      if ok {
+        break
+      }
+    }
+    if sig.jugador.id != m.jugador.id {Some(sig)} else {None}
+  }
+
+  pub fn manojo(&self, jid: &str) -> &Manojo {
+    &self.manojos[self.mixs[jid]]
+  }
+
+  /* PREDICADOS */
+
+  pub fn le_gana_de_mano(&self, i: usize, j: usize) -> bool {
+    let cant_jugadores = self.manojos.len();
+    let p = cv(i, self.el_mano, cant_jugadores);
+	  let q = cv(j, self.el_mano, cant_jugadores);
+    p < q
+  }
+
+  pub fn hay_equipo_sin_cantar(&self, equipo: Equipo) -> bool {
+    self.envite.sin_cantar
+      .iter()
+      .any(|jid| self.manojo(jid).jugador.equipo == equipo)
+  }
+
+  // setters
+
+  pub fn set_next_turno(&mut self) {
+    let manojo_turno_actual = &self.manojos[self.turno];
+    let manojo_sig_turno = self.get_siguiente_habilitado(manojo_turno_actual).unwrap();
+    self.turno = self.mixs[&manojo_sig_turno.jugador.id]
+  }
+
+  pub fn set_next_turno_pos_mano(&mut self) {
+
+    let sanity_check = |r: &mut Ronda| {
+      let candidato = &r.manojos[r.turno];
+      if candidato.se_fue_al_mazo {
+        let n = r.manojos.len();
+        let start_from = r.el_mano;
+        for i in 0..n {
+          let ix = (start_from + i) % n;
+          let m = &r.manojos[ix];
+          let mismo_equipo = m.jugador.equipo == candidato.jugador.equipo;
+          if mismo_equipo && !m.se_fue_al_mazo {
+            r.turno = r.mixs[&m.jugador.id];
+            break
+          }
+        }
+      }
+    };
+
+    if self.mano_en_juego == NumMano::Primera {
+      self.turno = self.el_mano;
+      sanity_check(self);
+    } else {
+      if self.get_mano_anterior().resultado != Resultado::Empardada {
+        let ganador_anterior = &self.get_mano_anterior().ganador;
+        self.turno = self.mixs[&self.manojo(ganador_anterior).jugador.id];
+        sanity_check(self);
+      } else {
+        let max_tirada = 
+          self.get_mano_anterior().cartas_tiradas
+            .iter()
+            .map(|t| (t, t.carta.calc_poder(&self.muestra)))
+            .max_by(|a, b| a.1.cmp(&b.1))
+            .unwrap()
+            .0;
+        if !self.manojo(&max_tirada.jugador).se_fue_al_mazo {
+          self.turno = self.mixs[&max_tirada.jugador];
+          sanity_check(self);
+          return;
+        }
+
+        let m = self.get_siguiente_habilitado(self.get_el_mano()).unwrap();
+        self.turno = self.mixs[&m.jugador.id];
+        sanity_check(self);
+      }
+    }
+  }
+
+  pub fn set_manojos(&mut self, manojos: Vec<Manojo>) {
+    self.manojos = manojos;
+    self.cachear_flores(true);
+  }
+
+  pub fn set_muestra(&mut self, muestra: Carta) {
+    self.muestra = muestra;
+    self.cachear_flores(true);
+  }
+
 }

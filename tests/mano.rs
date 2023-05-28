@@ -9,6 +9,16 @@ fn mano_ord_test(){
 }
 
 #[test]
+fn mano_ix_test(){
+  let p = NumMano::Primera;
+  let s = NumMano::Segunda;
+  let t = NumMano::Tercera;
+  assert!(0 == p as usize);
+  assert!(1 == s as usize);
+  assert!(2 == t as usize);
+}
+
+#[test]
 fn mano_struct_test(){
   let mut m = Mano {
     resultado: Resultado::Indeterminado,
