@@ -1,10 +1,16 @@
 use truco::*;
 
 #[test]
-fn packet_test(){
-  let p = enco::Packet{
-    destination: vec![String::from("foo")],
-    message: String::from("bar"),
-  };
-  println!("the Packet is: {:?}", p);
+fn message_json_test(){
+  let m = enco::Message(
+    enco::Content::Error{ msg: String::from("teletubbies") }
+  );
+  let _json = serde_json::to_string(&m).unwrap();
+  println!("the json is: {}", _json);
+
+  let m = enco::Message(
+    enco::Content::LaManoResultaParda{}
+  );
+  let _json = serde_json::to_string(&m).unwrap();
+  println!("the json is: {}", _json);
 }
