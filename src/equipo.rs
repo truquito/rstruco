@@ -1,7 +1,7 @@
 use std::fmt;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Eq, Hash, Clone, Copy)]
 #[serde(rename_all = "lowercase")]
 pub enum Equipo {
   Azul,

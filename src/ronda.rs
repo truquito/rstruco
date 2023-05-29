@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use std::iter;
 use serde::{Deserialize, Serialize};
 
+use crate::enco;
 // use crate::enco;
 use crate::mano::{NumMano, Mano, Resultado};
 use crate::jugador::{Jugador};
@@ -358,5 +359,207 @@ impl Ronda {
     self.muestra = muestra;
     self.cachear_flores(true);
   }
+
+  pub fn exec_el_envido(&mut self, verbose: bool) -> (usize, usize, Vec<enco::Packet>) {
+    let mut pkts: Vec<enco::Packet> = Vec::new();
+    let cant_jugadores = self.manojos.len();
+    let envidos =
+      self.manojos
+        .iter()
+        .map(|m| m.calcular_envido(&self.muestra))
+        .collect::<Vec<_>>();
+    let mut ya_dijeron = vec![false; cant_jugadores];
+    let mut jidx = self.el_mano;
+    while self.manojos[jidx].se_fue_al_mazo {
+      jidx = (jidx + 1) % cant_jugadores
+    }
+    ya_dijeron[jidx] = true;
+
+    if verbose {
+      pkts.push(enco::Packet{
+        destination: vec![String::from("ALL")],
+        message: enco::Message(
+          enco::Content::DiceTengo {
+            autor: self.manojos[jidx].jugador.id.clone(),
+            valor: envidos[jidx]
+          }
+        )
+      });
+    }
+
+    let mut todavia_no_dijeron_son_mejores = true;
+    let mut i = if self.el_mano != cant_jugadores - 1 {self.el_mano + 1}  else {0};
+
+    while i != self.el_mano {
+      let se_fue_al_mazo = self.manojos[i].se_fue_al_mazo;
+      let todavia_es_tenido_en_cuenta = (!ya_dijeron[i]) && (!se_fue_al_mazo);
+      if todavia_es_tenido_en_cuenta {
+        let es_de_equipo_contrario: bool = self.manojos[i].jugador.equipo != self.manojos[jidx].jugador.equipo;
+        let tiene_envido_mas_alto: bool = envidos[i] > envidos[jidx];
+        let tiene_envido_igual: bool = envidos[i] == envidos[jidx];
+        let le_gana_de_mano: bool = self.le_gana_de_mano(i, jidx);
+        let son_mejores: bool = tiene_envido_mas_alto || (tiene_envido_igual && le_gana_de_mano);
+
+        if son_mejores {
+          if es_de_equipo_contrario {
+            if verbose {
+              pkts.push(enco::Packet{
+                destination: vec![String::from("ALL")],
+                message: enco::Message(
+                  enco::Content::DiceSonMejores {
+                    autor: self.manojos[i].jugador.id.clone(),
+                    valor: envidos[i]
+                  }
+                )
+              });
+              jidx = i;
+              ya_dijeron[i] = true;
+              todavia_no_dijeron_son_mejores = false;
+              // se "resetea" el bucle
+              i = self.get_sig(self.el_mano);
+            }
+          } else {
+            i = self.get_sig(i);
+          }
+        } else {
+          if es_de_equipo_contrario {
+            if todavia_no_dijeron_son_mejores {
+              if verbose {
+                pkts.push(enco::Packet{
+                  destination: vec![String::from("ALL")],
+                  message: enco::Message(
+                    enco::Content::DiceSonBuenas {
+                      autor: self.manojos[i].jugador.id.clone()
+                    }
+                  )
+                });
+              }
+              ya_dijeron[i] = true;
+            }
+            i = self.get_sig(i);
+          } else {
+            ya_dijeron[i] = true;
+            i = self.get_sig(i);
+          }
+        }
+
+      } else {
+        i = self.get_sig(i);
+      }
+    }
+
+    let max_envido = envidos[jidx];
+    return (jidx, max_envido, pkts);
+  }
+
+  pub fn exec_las_flores(&mut self, a_partir_de:usize, verbose: bool) -> 
+    (&Manojo, usize, Vec<enco::Packet>) {
+    
+    let mut pkts: Vec<enco::Packet> = Vec::new();
+    let equipo = self.manojo(&self.envite.jugadores_con_flor[0]).jugador.equipo.clone();
+    let solo_un_equipo_tiene_flores = 
+      self.envite.jugadores_con_flor[1..]
+      .iter()
+      .map(|jid| self.manojo(jid))
+      .any(|m| m.jugador.equipo != equipo);
+    if solo_un_equipo_tiene_flores {
+      return (&self.manojo(&self.envite.jugadores_con_flor[0]), 0, pkts);
+    }
+
+    let flores = 
+      self.manojos
+        .iter()
+        .map(|m| m.calc_flor(&self.muestra))
+        .collect::<Vec<_>>();
+    
+    let mut ya_dijeron =
+      self.manojos
+        .iter()
+        .enumerate()
+        .map(|(i,m)| !(flores[i]>0 && !m.se_fue_al_mazo))
+        .collect::<Vec<_>>();
+
+    if flores[a_partir_de] > 0 {
+      ya_dijeron[a_partir_de] = true;
+      if verbose {
+        pkts.push(enco::Packet{
+          destination: vec![String::from("ALL")],
+          message: enco::Message(
+            enco::Content::DiceTengo {
+              autor: self.manojos[a_partir_de].jugador.id.clone(),
+              valor: flores[a_partir_de] as usize
+            }
+          )
+        });
+      }
+    }
+
+    let mut todavia_no_dijeron_son_mejores = true;
+    let mut jidx = a_partir_de;
+    let mut i = self.get_sig(a_partir_de);
+
+    while i != a_partir_de {
+      let todavia_es_tenido_en_cuenta = !ya_dijeron[i];
+      if todavia_es_tenido_en_cuenta {
+
+        let es_de_equipo_contrario = self.manojos[i].jugador.equipo != self.manojos[jidx].jugador.equipo;
+        let tiene_envido_mas_alto = flores[i] > flores[jidx];
+        let tiene_envido_igual = flores[i] == flores[jidx];
+        let le_gana_de_mano = self.le_gana_de_mano(i, jidx);
+        let son_mejores = tiene_envido_mas_alto || (tiene_envido_igual && le_gana_de_mano);
+
+        if son_mejores {
+          if es_de_equipo_contrario {
+            if verbose {
+              pkts.push(enco::Packet{
+                destination: vec![String::from("ALL")],
+                message: enco::Message(
+                  enco::Content::DiceSonMejores {
+                    autor: self.manojos[i].jugador.id.clone(),
+                    valor: flores[a_partir_de] as usize
+                  }
+                )
+              });
+            }
+            
+            jidx = i;
+            ya_dijeron[i] = true;
+            todavia_no_dijeron_son_mejores = false;
+            // se "resetea" el bucle
+            i = self.get_sig(a_partir_de);
+
+          } else {
+            i = self.get_sig(i);
+          }
+        } else {
+          if es_de_equipo_contrario {
+            if todavia_no_dijeron_son_mejores {
+              if verbose {
+                pkts.push(enco::Packet{
+                  destination: vec![String::from("ALL")],
+                  message: enco::Message(
+                    enco::Content::DiceSonBuenas {
+                      autor: self.manojos[i].jugador.id.clone()
+                    }
+                  )
+                });
+              }
+              ya_dijeron[i] = true;
+            }
+            i = self.get_sig(i);
+          } else {
+            ya_dijeron[i] = true;
+            i = self.get_sig(i);
+          }
+        }
+
+      } else {
+        i = self.get_sig(i);
+      }
+    }
+
+    let max_flor = flores[jidx];
+    return (&self.manojos[jidx], max_flor as usize, pkts);
+  }  
 
 }
