@@ -2,6 +2,7 @@ use std::fmt::Debug;
 use crate::partida::{Partida};
 use crate::{enco, EstadoEnvite, NumMano, EstadoTruco};
 use crate::carta::{Carta};
+use crate::manojo::{Manojo};
 use crate::equipo::{Equipo};
 
 pub enum IJugadaId {
@@ -1243,12 +1244,263 @@ impl GritarVale4 {
   }
 }
 
-
-/*
-pub struct  {
+pub struct ResponderQuiero {
   pub jid: String,
 }
-impl  {
+impl ResponderQuiero {
+  pub fn id() -> IJugadaId {
+    IJugadaId::JIdQuiero
+  }
+  pub fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
+    let mut pkts: Vec<enco::Packet> = Vec::new();
+    let se_fue_al_mazo = p.ronda.manojo(&self.jid).se_fue_al_mazo;
+    if se_fue_al_mazo {
+      if p.verbose {
+        pkts.push(enco::Packet{
+          destination: vec![self.jid.clone()],
+          message: enco::Message(
+            enco::Content::Error {
+              msg: "Te fuiste al mazo; no podes Hacer esta jugada".to_string(),
+            }
+          )
+        });
+      }
+      return (pkts, false);
+    }
+
+    // checkeo flor en juego
+    // caso particular del checkeo:
+    // no se le puede decir quiero ni al envido* ni al truco si se esta jugando la flor
+    // no se le puede decir quiero a la flor -> si la flor esta en juego -> error
+    // pero si a la contra flor o contra flor al resto
+
+    // casos posibles:
+    // alguien dijo envido/truco, otro responde quiero, pero hay uno que tiene flor que todavia no la jugo -> deberia saltar error: "alguien tiene flor y no la jugo aun"
+    // alguien tiene flor, uno dice quiero -> no deberia dejarlo porque la flor no se responde con quiero
+    // se esta jugando la contra-flor/CFAR -> ok
+
+    let flor_en_juego = p.ronda.envite.estado == EstadoEnvite::Flor;
+    if flor_en_juego {
+      if p.verbose {
+        pkts.push(enco::Packet{
+          destination: vec![self.jid.clone()],
+          message: enco::Message(
+            enco::Content::Error {
+              msg: "No es posible responder quiero ahora".to_string(),
+            }
+          )
+        });
+      }
+      return (pkts, false);
+    }
+
+    let no_han_cantado_la_flor_aun = p.ronda.envite.estado < EstadoEnvite::Flor;
+    let yo_ouno_de_mis_compas_tiene_flor_yaun_no_canto = p.ronda.hay_equipo_sin_cantar(p.ronda.manojo(&self.jid).jugador.equipo);
+    if no_han_cantado_la_flor_aun && yo_ouno_de_mis_compas_tiene_flor_yaun_no_canto {
+      if p.verbose {
+        pkts.push(enco::Packet{
+          destination: vec![self.jid.clone()],
+          message: enco::Message(
+            enco::Content::Error {
+              msg: "No es posible responder 'quiero' porque alguien con flor no ha cantado aun".to_string(),
+            }
+          )
+        });
+      }
+      return (pkts, false);
+    }
+    // se acepta una respuesta 'quiero' solo cuando:
+    // - CASO I: se toco un envite+ (con autor del equipo contario)
+    // - CASO II: se grito el truco+ (con autor del equipo contario)
+    // en caso contrario, es incorrecto -> error
+
+    let el_envido_es_respondible = p.ronda.envite.estado >= EstadoEnvite::Envido && p.ronda.envite.estado <= EstadoEnvite::FaltaEnvido;
+    // ojo: solo a la contraflor+ se le puede decir quiero; a la flor sola no
+    let la_contra_flor_es_respondible = p.ronda.envite.estado >= EstadoEnvite::ContraFlor && p.ronda.manojo(&p.ronda.envite.cantado_por).jugador.equipo != p.ronda.manojo(&self.jid).jugador.equipo;
+    let el_truco_es_respondible = p.ronda.truco.estado.es_truco_respondible() && p.ronda.manojo(&p.ronda.truco.cantado_por).jugador.equipo != p.ronda.manojo(&self.jid).jugador.equipo;
+
+    let ok = el_envido_es_respondible || la_contra_flor_es_respondible || el_truco_es_respondible;
+    if !ok {
+      // si no, esta respondiendo al pedo
+      if p.verbose {
+        pkts.push(enco::Packet{
+          destination: vec![self.jid.clone()],
+          message: enco::Message(
+            enco::Content::Error {
+              msg: "No hay nada 'que querer'; ya que: el estado del envido no es 'envido' (o mayor) y el estado del truco no es 'truco' (o mayor) o bien fue cantado por uno de su equipo".to_string(),
+            }
+          )
+        });
+      }
+      return (pkts, false);
+    }
+
+    if el_envido_es_respondible {
+      let es_del_equipo_contrario = p.ronda.manojo(&self.jid).jugador.equipo != p.ronda.manojo(&p.ronda.envite.cantado_por).jugador.equipo;
+      if !es_del_equipo_contrario {
+        if p.verbose {
+          pkts.push(enco::Packet{
+            destination: vec![self.jid.clone()],
+            message: enco::Message(
+              enco::Content::Error {
+                msg: "La jugada no es valida".to_string(),
+              }
+            )
+          });
+        }
+        return (pkts, false);
+      }
+
+    } else if la_contra_flor_es_respondible {
+      // tengo que verificar si efectivamente tiene flor
+      let (tiene_flor, _) = p.ronda.manojo(&self.jid).tiene_flor(&p.ronda.muestra);
+      let es_del_equipo_contrario = p.ronda.manojo(&self.jid).jugador.equipo != p.ronda.manojo(&p.ronda.envite.cantado_por).jugador.equipo;
+      let ok = tiene_flor && es_del_equipo_contrario;
+      if !ok {
+        if p.verbose {
+          pkts.push(enco::Packet{
+            destination: vec![self.jid.clone()],
+            message: enco::Message(
+              enco::Content::Error {
+                msg: "La jugada no es valida".to_string(),
+              }
+            )
+          });
+        }
+        return (pkts, false);
+      }
+    }
+    (pkts, true)
+  }
+
+  pub fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet> {
+    let mut pkts: Vec<enco::Packet> = Vec::new();
+    let (mut pre, ok) = self.ok(p);
+    pkts.append(&mut pre);
+
+    if !ok {
+      return pkts
+    }
+
+    // se acepta una respuesta 'quiero' solo cuando:
+    // - CASO I: se toco un envite+ (con autor del equipo contario)
+    // - CASO II: se grito el truco+ (con autor del equipo contario)
+    // en caso contrario, es incorrecto -> error
+
+    let el_envido_es_respondible = p.ronda.envite.estado >= EstadoEnvite::Envido && p.ronda.envite.estado <= EstadoEnvite::FaltaEnvido;
+    // ojo: solo a la contraflor+ se le puede decir quiero; a la flor sola no
+    let la_contra_flor_es_respondible = p.ronda.envite.estado >= EstadoEnvite::ContraFlor && p.ronda.manojo(&p.ronda.envite.cantado_por).jugador.equipo != p.ronda.manojo(&self.jid).jugador.equipo;
+    let el_truco_es_respondible = p.ronda.truco.estado.es_truco_respondible() && p.ronda.manojo(&p.ronda.truco.cantado_por).jugador.equipo != p.ronda.manojo(&self.jid).jugador.equipo;
+
+    if el_envido_es_respondible {
+      if p.verbose {
+        pkts.push(enco::Packet{
+          destination: vec!["ALL".to_string()],
+          message: enco::Message(
+            enco::Content::QuieroEnvite {
+              autor: self.jid.clone(),
+            }
+          )
+        });
+      }
+
+      if p.ronda.envite.estado == EstadoEnvite::FaltaEnvido {
+        let mut res = TocarFaltaEnvido{jid: self.jid.clone()}.eval(p);
+        pkts.append(&mut res);
+        return pkts;
+      }
+      // si no, era envido/real-envido o cualquier
+      // combinacion valida de ellos
+
+      let mut res = TocarEnvido{jid: self.jid.clone()}.eval(p);
+      pkts.append(&mut res);
+      return pkts;
+
+    } else if la_contra_flor_es_respondible {
+
+      if p.verbose {
+        pkts.push(enco::Packet{
+          destination: vec!["ALL".to_string()],
+          message: enco::Message(
+            enco::Content::QuieroEnvite {
+              autor: self.jid.clone(),
+            }
+          )
+        });
+      }
+
+      // empieza cantando el autor del envite no el que "quizo"
+      let autor_idx = p.ronda.mixs[&p.ronda.envite.cantado_por];
+      let equipo_ganador: Equipo;
+      let ganador: String;
+      {
+        let (manojo_con_la_flor_mas_alta, _, mut res) = 
+          p.ronda.exec_las_flores(autor_idx, p.verbose);
+        equipo_ganador = manojo_con_la_flor_mas_alta.jugador.equipo;
+        ganador = manojo_con_la_flor_mas_alta.jugador.id.clone();
+        pkts.append(&mut res);
+      }
+
+      if p.ronda.envite.estado == EstadoEnvite::ContraFlor {
+        let puntos_asumar = p.ronda.envite.puntaje;
+        p.suma_puntos(equipo_ganador, puntos_asumar);
+        if p.verbose {
+          pkts.push(enco::Packet{
+            destination: vec!["ALL".to_string()],
+            message: enco::Message(
+              enco::Content::SumaPts {
+                autor: ganador,
+                razon: enco::Razon::ContraFlorGanada,
+                pts: puntos_asumar
+              }
+            )
+          });
+        }
+      } else {
+        // el equipo del ganador de la contraflor al resto
+        // gano la partida
+        // duda se cuentan las flores?
+        // puntosASumar = p.ronda.envite.puntaje + p.CalcPtsContraFlorAlResto(equipoGanador);
+        let puntos_asumar = p.calc_pts_contraflor_al_resto(equipo_ganador);
+        p.suma_puntos(equipo_ganador, puntos_asumar);
+        if p.verbose {
+          pkts.push(enco::Packet{
+            destination: vec!["ALL".to_string()],
+            message: enco::Message(
+              enco::Content::SumaPts {
+                autor: ganador,
+                razon: enco::Razon::ContraFlorAlRestoGanada,
+                pts: puntos_asumar
+              }
+            )
+          });
+        }
+      }
+      p.ronda.envite.estado = EstadoEnvite::Deshabilitado;
+      p.ronda.envite.sin_cantar = Vec::new();
+    } else if el_truco_es_respondible {
+      if p.verbose {
+        pkts.push(enco::Packet{
+          destination: vec!["ALL".to_string()],
+          message: enco::Message(
+            enco::Content::QuieroTruco {
+              autor: self.jid.clone(),
+            }
+          )
+        });
+      }
+      p.querer_truco(&self.jid)
+    }
+
+    pkts
+  }
+}
+
+/*
+pub struct Foo {
+  pub jid: String,
+}
+impl Foo {
   pub fn id() -> IJugadaId {
     IJugadaId::JIdTirarCarta
   }
