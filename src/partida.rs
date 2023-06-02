@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use crate::equipo::{Equipo};
-use crate::{jugadear, Manojo, EstadoEnvite, EstadoTruco, Palo};
+use crate::{jugadear, EstadoEnvite, EstadoTruco, Palo};
 use crate::ronda::{Ronda};
 use crate::enco;
 use crate::mano::{NumMano, Resultado};
@@ -106,7 +106,8 @@ impl Partida {
     self.terminada()
   }
 
-  pub fn tocar_envido(&mut self, m: &Manojo) {
+  pub fn tocar_envido(&mut self, jid: &str) {
+    let m = &self.ronda.manojos[self.ronda.mixs[jid]];
     // 2 opciones: o bien no se jugo aun
 	  // o bien ya estabamos en envido
     let ya_se_habia_cantado_el_envido = 
@@ -122,7 +123,8 @@ impl Partida {
     }    
   }
 
-  pub fn tocar_real_envido(&mut self, m: &Manojo){
+  pub fn tocar_real_envido(&mut self, jid: &str){
+    let m = &self.ronda.manojos[self.ronda.mixs[jid]];
     self.ronda.envite.cantado_por = m.jugador.id.clone();
     // 2 opciones:
     // o bien el envido no se jugo aun,
@@ -137,12 +139,14 @@ impl Partida {
     self.ronda.envite.estado = EstadoEnvite::RealEnvido;
   }
 
-  pub fn tocar_falta_envido(&mut self, m: &Manojo){
+  pub fn tocar_falta_envido(&mut self, jid: &str){
+    let m = &self.ronda.manojos[self.ronda.mixs[jid]];
     self.ronda.envite.estado = EstadoEnvite::FaltaEnvido;
     self.ronda.envite.cantado_por = m.jugador.id.clone();
   }
 
-  pub fn cantar_flor(&mut self, m: &Manojo){
+  pub fn cantar_flor(&mut self, jid: &str){
+    let m = &self.ronda.manojos[self.ronda.mixs[jid]];
     let ya_estabamos_en_flor = self.ronda.envite.estado >= EstadoEnvite::Flor;
     if ya_estabamos_en_flor{
       self.ronda.envite.puntaje += 3;
@@ -161,26 +165,30 @@ impl Partida {
     }
   }
 
-  pub fn cantar_contra_flor(&mut self, m: &Manojo){
+  pub fn cantar_contra_flor(&mut self, jid: &str){
     self.ronda.envite.estado = EstadoEnvite::ContraFlor;
+    let m = &self.ronda.manojos[self.ronda.mixs[jid]];
     self.ronda.envite.cantado_por = m.jugador.id.clone();
     // ahora la flor pasa a jugarse por 4 puntos
     self.ronda.envite.puntaje = 4;
   }
 
-  pub fn cantar_contra_flor_al_resto(&mut self, m: &Manojo){
+  pub fn cantar_contra_flor_al_resto(&mut self, jid: &str){
     self.ronda.envite.estado = EstadoEnvite::ContraFlorAlResto;
+    let m = &self.ronda.manojos[self.ronda.mixs[jid]];
     self.ronda.envite.cantado_por = m.jugador.id.clone();
     // ahora la flor pasa a jugarse por 4 puntos
     self.ronda.envite.puntaje = 4; // <- eso es al pedo, es independiente
   }
 
-  pub fn gritar_truco(&mut self, m: &Manojo){
+  pub fn gritar_truco(&mut self, jid: &str){
+    let m = &self.ronda.manojos[self.ronda.mixs[jid]];
     self.ronda.truco.cantado_por = m.jugador.id.clone();
     self.ronda.truco.estado = EstadoTruco::Truco;
   }
 
-  pub fn querer_truco(&mut self, m: &Manojo){
+  pub fn querer_truco(&mut self, jid: &str){
+    let m = &self.ronda.manojos[self.ronda.mixs[jid]];
     self.ronda.truco.cantado_por = m.jugador.id.clone();
     self.ronda.truco.estado = match self.ronda.truco.estado {
       EstadoTruco::Truco => {EstadoTruco::TrucoQuerido},
@@ -190,17 +198,20 @@ impl Partida {
     };
   }
 
-  pub fn gritar_retruco(&mut self, m: &Manojo){
+  pub fn gritar_retruco(&mut self, jid: &str){
+    let m = &self.ronda.manojos[self.ronda.mixs[jid]];
     self.ronda.truco.cantado_por = m.jugador.id.clone();
     self.ronda.truco.estado = EstadoTruco::ReTruco;
   }
 
-  pub fn gritar_vale4(&mut self, m: &Manojo){
+  pub fn gritar_vale4(&mut self, jid: &str){
+    let m = &self.ronda.manojos[self.ronda.mixs[jid]];
     self.ronda.truco.cantado_por = m.jugador.id.clone();
     self.ronda.truco.estado = EstadoTruco::Vale4;
   }
 
-  pub fn ir_al_mazo(&mut self, m: &mut Manojo){
+  pub fn ir_al_mazo(&mut self, jid: &str){
+    let m = &mut self.ronda.manojos[self.ronda.mixs[jid]];
     m.se_fue_al_mazo = true;
     let equipo_del_jugador = m.jugador.equipo;
     self.ronda.cant_jugadores_en_juego
@@ -237,9 +248,9 @@ impl Partida {
     self.ronda.get_mano_actual().agregar_tirada(tirada);
   }
 
-  pub fn abandono(&mut self, jugador:&str) -> Vec<enco::Packet> {
+  pub fn abandono(&mut self, jid:&str) -> Vec<enco::Packet> {
     // encuentra al jugador
-    let manojo = self.ronda.manojo(jugador);
+    let manojo = self.ronda.manojo(jid);
     // doy por ganador al equipo contrario
     let equipo_contrario = manojo.jugador.equipo.equipo_contrario();
     let pts_faltantes = self.puntuacion - self.puntajes[&equipo_contrario];
@@ -251,7 +262,7 @@ impl Partida {
         destination: vec![String::from("ALL")],
         message: enco::Message(
           enco::Content::Abandono {
-            autor: jugador.to_string(),
+            autor: jid.to_string(),
           }
         )
       });
