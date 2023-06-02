@@ -26,10 +26,6 @@ pub trait IJugada: Debug {
   fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet>;
 }
 
-pub fn jugadear(p: &Partida) -> bool {
-  p.puntuacion > 0 
-}
-
 pub struct TirarCarta {
   pub jid: String,
 	pub carta: Carta

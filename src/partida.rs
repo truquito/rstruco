@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use crate::equipo::{Equipo};
-use crate::{jugadear, EstadoEnvite, EstadoTruco, Palo};
+use crate::{EstadoEnvite, EstadoTruco, Palo};
 use crate::ronda::{Ronda};
 use crate::enco;
 use crate::mano::{NumMano, Resultado};
@@ -41,10 +41,6 @@ impl Partida {
       verbose: verbose,
       ronda: Ronda::new(azules, rojos).unwrap()
     })
-  }
-
-  pub fn bar(&self) -> bool {
-    jugadear(self)
   }
 
   /* GETTERs */
