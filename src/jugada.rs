@@ -266,6 +266,7 @@ impl TirarCarta {
                   message: enco::Message(
                     enco::Content::NuevaRonda {
                       // todo: aca va una perspctiva de p segun m
+                      // todo!()
                     }
                   )
                 }
@@ -418,13 +419,12 @@ impl TocarEnvido {
       // todo: deberia ir al estado magico en el que espera
       // solo por jugadas de tipo flor-related
       // lo mismo para el real-envido; falta-envido
-      let _jid = p.ronda.envite.sin_cantar[0].clone();
+      let jid = p.ronda.envite.sin_cantar[0].clone();
 
       // todo
-      todo!()
-      // let siguienteJugada = CantarFlor{jid};
-      // let res = siguienteJugada.Hacer(p);
-      // pkts = append(pkts, res...)
+      let siguiente_jugada = CantarFlor{ jid };
+      let mut res = siguiente_jugada.hacer(p);
+      pkts.append(&mut res);
 
     } else {
       p.tocar_envido(&self.jid);
@@ -577,13 +577,10 @@ impl TocarRealEnvido {
     let hay_flor = p.ronda.envite.sin_cantar.len() > 0;
   
     if hay_flor {
-      // let jid = p.ronda.envite.sin_cantar[0];
-      todo!();
-      // todo!
-      // j = p.ronda.manojo(jid);
-      // let siguienteJugada = CantarFlor{jid};
-      // let res = siguienteJugada.Hacer(p);
-      // pkts = append(pkts, res...)
+      let jid = p.ronda.envite.sin_cantar[0].clone();
+      let siguiente_jugada = CantarFlor{ jid };
+      let mut res = siguiente_jugada.hacer(p);
+      pkts.append(&mut res);
     }
 
     pkts
@@ -709,13 +706,10 @@ impl TocarFaltaEnvido {
     // ahora checkeo si alguien tiene flor
     let hay_flor = p.ronda.envite.sin_cantar.len() > 0;
     if hay_flor {
-      todo!();
-      // todo
-      // let jid = p.ronda.envite.sin_cantar[0];
-      // // j = p.ronda.manojo(jid);
-      // let siguienteJugada = CantarFlor{jid};
-      // let res = siguienteJugada.Hacer(p);
-      // pkts = append(pkts, res...)
+      let jid = p.ronda.envite.sin_cantar[0].clone();
+      let siguiente_jugada = CantarFlor{ jid };
+      let mut res = siguiente_jugada.hacer(p);
+      pkts.append(&mut res);
     }
 
     pkts
