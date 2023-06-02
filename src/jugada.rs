@@ -2072,7 +2072,7 @@ impl IrseAlMazo {
       }
     } else {
       // cambio de turno solo si era su turno
-      let era_su_turno = p.ronda.get_el_turno().jugador.id == p.ronda.manojo(&self.jid).jugador.id;
+      let era_su_turno = p.ronda.get_el_turno().jugador.id == self.jid;
       if era_su_turno {
         p.ronda.set_next_turno();
         if p.verbose {
