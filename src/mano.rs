@@ -33,14 +33,14 @@ pub enum Resultado {
   Empardada
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CartaTirada {
   pub jugador: String,
   pub carta: Carta,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "lowercase")]
 pub struct Mano {
   pub resultado: Resultado,

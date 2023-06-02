@@ -4,7 +4,6 @@ use std::iter;
 use serde::{Deserialize, Serialize};
 
 use crate::enco;
-// use crate::enco;
 use crate::mano::{NumMano, Mano, Resultado};
 use crate::jugador::{Jugador};
 use crate::equipo::{Equipo};
@@ -13,7 +12,7 @@ use crate::truco::{Truco};
 use crate::manojo::{Manojo};
 use crate::carta::{Carta, get_cartas_random};
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "lowercase")]
 // pub struct Ronda<'a> { // <- si se usa `jugadores_con_flor` con referencias
   pub struct Ronda {
@@ -239,8 +238,8 @@ impl Ronda {
     &self.manos[self.mano_en_juego as usize - 1]
   }
 
-  pub fn get_mano_actual(&self) -> &Mano {
-    &self.manos[self.mano_en_juego as usize]
+  pub fn get_mano_actual(&mut self) -> &mut Mano {
+    &mut self.manos[self.mano_en_juego as usize]
   }
 
   pub fn get_sig(&self, j:usize) -> usize {

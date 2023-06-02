@@ -46,7 +46,7 @@ pub struct Envite<'a> {
 
 */
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Envite {
   pub estado: EstadoEnvite,
   pub puntaje: usize,

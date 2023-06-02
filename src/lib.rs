@@ -8,6 +8,7 @@ mod truco;
 mod envite;
 mod ronda;
 mod partida;
+mod jugada;
 pub mod enco;
 
 // `use` ~ import without namespace
@@ -23,4 +24,5 @@ pub use self::truco::{*};
 pub use self::envite::{*};
 pub use self::ronda::{*};
 pub use self::partida::{*};
+pub use self::jugada::{*};
 pub use self::enco::{*};

@@ -29,12 +29,12 @@ impl fmt::Display for EstadoTruco {
 }
 
 impl EstadoTruco {
-  pub fn es_truco_respondible(&self, e: EstadoTruco) -> bool {
-    [EstadoTruco::Truco, EstadoTruco::ReTruco, EstadoTruco::Vale4Querido].contains(&e)
+  pub fn es_truco_respondible(&self) -> bool {
+    [EstadoTruco::Truco, EstadoTruco::ReTruco, EstadoTruco::Vale4Querido].contains(&self)
   }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Truco {
   pub cantado_por: String,
   pub estado: EstadoTruco,

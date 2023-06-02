@@ -52,7 +52,7 @@ impl fmt::Display for Palo {
   }
 }
 
-#[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Hash)]
+#[derive(Debug, Deserialize, Serialize, Eq, PartialEq, Hash, Clone, Copy)]
 #[serde(rename_all = "lowercase")]
 pub struct Carta {
   pub valor: usize,

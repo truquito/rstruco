@@ -4,7 +4,7 @@ use crate::carta::*;
 use crate::jugador::*;
 use crate::mano::*;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "lowercase")]
 pub struct Manojo {
   pub se_fue_al_mazo: bool,
