@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use crate::equipo::{Equipo};
-use crate::{jugadear, Manojo, EstadoEnvite, EstadoTruco, CartaTirada, Palo};
+use crate::{jugadear, Manojo, EstadoEnvite, EstadoTruco, Palo};
 use crate::ronda::{Ronda};
 use crate::enco;
 use crate::mano::{NumMano, Resultado};
@@ -11,7 +11,8 @@ pub struct Partida{
   pub puntuacion: usize,
   pub puntajes: HashMap<Equipo, usize>,
   pub ronda: Ronda,
-  verbose: bool,
+  #[serde(skip_deserializing, skip_serializing)]
+  pub verbose: bool,
 }
 
 impl Partida {
@@ -218,15 +219,21 @@ impl Partida {
     }
   }
 
-  pub fn tirar_carta(&mut self, m: &mut Manojo, idx:usize){
-    m.tiradas[idx] = true;
-    m.ultima_tirada = idx as isize;
-    let carta = m.cartas[idx].clone();
-    let tirada = CartaTirada{
-      jugador: m.jugador.id.clone(),
-      carta: carta
-    };
+  // canonical
+  // pub fn tirar_carta(&mut self, m: &mut Manojo, idx:usize){
+  //   m.tiradas[idx] = true;
+  //   m.ultima_tirada = idx as isize;
+  //   let carta = m.cartas[idx].clone();
+  //   let tirada = CartaTirada{
+  //     jugador: m.jugador.id.clone(),
+  //     carta: carta
+  //   };
 
+  //   self.ronda.get_mano_actual().agregar_tirada(tirada);
+  // }
+
+  pub fn tirar_carta(&mut self, jid: &str, idx:usize) {
+    let tirada = self.ronda.manojos[self.ronda.mixs[jid]].tirar_carta(idx);
     self.ronda.get_mano_actual().agregar_tirada(tirada);
   }
 

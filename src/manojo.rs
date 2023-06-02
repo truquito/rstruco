@@ -25,6 +25,17 @@ impl Manojo {
     }
   }
 
+  pub fn tirar_carta(&mut self, idx:usize) -> CartaTirada {
+    self.tiradas[idx] = true;
+    self.ultima_tirada = idx as isize;
+    let carta = self.cartas[idx].clone();
+    let tirada = CartaTirada{
+      jugador: self.jugador.id.clone(),
+      carta: carta
+    };
+    tirada
+  }
+
   pub fn get_cant_cartas_tiradas(&self) -> usize {
     self.tiradas.into_iter().filter(|b| *b).count()
   }
