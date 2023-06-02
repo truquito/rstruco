@@ -1044,6 +1044,68 @@ impl CantarContraFlorAlResto {
   }
 }
 
+pub struct GritarTruco {
+  pub jid: String,
+}
+impl GritarTruco {
+  pub fn id() -> IJugadaId {
+    IJugadaId::JIdTruco
+  }
+  pub fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
+    let mut pkts: Vec<enco::Packet> = Vec::new();
+    // checkeos:
+    let no_se_fue_al_mazo = !p.ronda.manojo(&self.jid).se_fue_al_mazo;
+    let no_se_esta_jugando_el_envite = p.ronda.envite.estado <= EstadoEnvite::NoCantadoAun;
+
+    let yo_ouno_de_mis_compas_tiene_flor_yaun_no_canto = p.ronda.hay_equipo_sin_cantar(p.ronda.manojo(&self.jid).jugador.equipo);
+
+    let la_flor_esta_primero = yo_ouno_de_mis_compas_tiene_flor_yaun_no_canto;
+    let truco_no_se_jugo_aun = p.ronda.truco.estado == EstadoTruco::NoCantado;
+    let es_su_turno = p.ronda.get_el_turno().jugador.id == p.ronda.manojo(&self.jid).jugador.id;
+    let truco_habilitado = no_se_fue_al_mazo && truco_no_se_jugo_aun && no_se_esta_jugando_el_envite && !la_flor_esta_primero && es_su_turno;
+
+    if !truco_habilitado {
+      if p.verbose {
+        pkts.push(enco::Packet{
+          destination: vec![self.jid.clone()],
+          message: enco::Message(
+            enco::Content::Error {
+              msg: "No es posible cantar truco ahora".to_string(),
+            }
+          )
+        });
+      }
+      return (pkts, false)
+    }
+    (pkts, true)
+  }
+
+  pub fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet> {
+    let mut pkts: Vec<enco::Packet> = Vec::new();
+    let (mut pre, ok) = self.ok(p);
+    pkts.append(&mut pre);
+
+    if !ok {
+      return pkts
+    }
+
+    if p.verbose {
+      pkts.push(enco::Packet{
+        destination: vec!["ALL".to_string()],
+        message: enco::Message(
+          enco::Content::GritarTruco {
+            autor: self.jid.clone(),
+          }
+        )
+      });
+    }
+  
+    p.gritar_truco(&self.jid);
+
+    pkts
+  }
+}
+
 /*
 pub struct Foo {
   pub jid: String,
