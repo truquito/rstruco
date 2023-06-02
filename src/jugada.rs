@@ -1177,6 +1177,73 @@ impl GritarReTruco {
   }
 }
 
+pub struct GritarVale4 {
+  pub jid: String,
+}
+impl GritarVale4 {
+  pub fn id() -> IJugadaId {
+    IJugadaId::JIdVale4
+  }
+  pub fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
+    let mut pkts: Vec<enco::Packet> = Vec::new();
+    let no_se_fue_al_mazo = !p.ronda.manojo(&self.jid).se_fue_al_mazo;
+    let no_se_esta_jugando_el_envite = p.ronda.envite.estado <= EstadoEnvite::NoCantadoAun;
+    let yo_ouno_de_mis_compas_tiene_flor_yaun_no_canto = p.ronda.hay_equipo_sin_cantar(p.ronda.manojo(&self.jid).jugador.equipo);
+    let la_flor_esta_primero = yo_ouno_de_mis_compas_tiene_flor_yaun_no_canto;
+    // CASO I:
+    let re_truco_gritado = p.ronda.truco.estado == EstadoTruco::ReTruco;
+    // para eviat el nil primero checkeo que haya sido gritado reTrucoGritado &&
+    let uno_del_equipo_contrario_grito_re_truco = re_truco_gritado && p.ronda.manojo(&p.ronda.truco.cantado_por).jugador.equipo != p.ronda.manojo(&self.jid).jugador.equipo;
+    let caso_i = re_truco_gritado && uno_del_equipo_contrario_grito_re_truco;
+    // CASO I:
+    let retruco_ya_querido = p.ronda.truco.estado == EstadoTruco::ReTrucoQuerido;
+    // para eviat el nil primero checkeo que haya sido gritado reTrucoGritado &&
+    let su_equipotiene_el_quiero = retruco_ya_querido && p.ronda.manojo(&p.ronda.truco.cantado_por).jugador.equipo == p.ronda.manojo(&self.jid).jugador.equipo;
+    let caso_ii = retruco_ya_querido && su_equipotiene_el_quiero;
+    let vale4_habilitado = no_se_fue_al_mazo && (caso_i || caso_ii) && no_se_esta_jugando_el_envite && !la_flor_esta_primero;
+    if !vale4_habilitado {
+      if p.verbose {
+        pkts.push(enco::Packet{
+          destination: vec![self.jid.clone()],
+          message: enco::Message(
+            enco::Content::Error {
+              msg: "No es posible cantar vale-4 ahora".to_string(),
+            }
+          )
+        });
+      }
+      return (pkts, false);
+    }
+    (pkts, true)
+  }
+
+  pub fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet> {
+    let mut pkts: Vec<enco::Packet> = Vec::new();
+    let (mut pre, ok) = self.ok(p);
+    pkts.append(&mut pre);
+
+    if !ok {
+      return pkts
+    }
+
+    if p.verbose {
+      pkts.push(enco::Packet{
+        destination: vec!["ALL".to_string()],
+        message: enco::Message(
+          enco::Content::GritarVale4 {
+            autor: self.jid.clone(),
+          }
+        )
+      });
+    }
+  
+    p.gritar_vale4(&self.jid);
+
+    pkts
+  }
+}
+
+
 /*
 pub struct  {
   pub jid: String,
@@ -1187,7 +1254,7 @@ impl  {
   }
   pub fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
     let mut pkts: Vec<enco::Packet> = Vec::new();
-    // ok
+    // checkeos
     (pkts, true)
   }
 
