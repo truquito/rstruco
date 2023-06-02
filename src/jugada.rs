@@ -1766,17 +1766,100 @@ impl ResponderNoQuiero {
   }
 }
 
-/*
-pub struct Foo {
+pub struct IrseAlMazo {
   pub jid: String,
 }
-impl Foo {
+impl IrseAlMazo {
   pub fn id() -> IJugadaId {
-    IJugadaId::JIdTirarCarta
+    IJugadaId::JIdMazo
   }
-  pub fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
+  pub fn ok(&self, p:&mut Partida) -> (Vec<enco::Packet>, bool) {
     let mut pkts: Vec<enco::Packet> = Vec::new();
-    // checkeos
+    let ya_se_fue_al_mazo = p.ronda.manojo(&self.jid).se_fue_al_mazo;
+    let ya_tiro_todas_sus_cartas = p.ronda.manojo(&self.jid).get_cant_cartas_tiradas() == 3;
+    if ya_se_fue_al_mazo || ya_tiro_todas_sus_cartas {
+      if p.verbose {
+        pkts.push(enco::Packet{
+          destination: vec![self.jid.clone()],
+          message: enco::Message(
+            enco::Content::Error {
+              msg: "No es posible irse al mazo ahora".to_string(),
+            }
+          )
+        });
+      }
+      return (pkts, false);
+    }
+
+    let se_estaba_jugando_el_envido = p.ronda.envite.estado >= EstadoEnvite::Envido && p.ronda.envite.estado <= EstadoEnvite::FaltaEnvido;
+    let se_estaba_jugando_la_flor = p.ronda.envite.estado >= EstadoEnvite::Flor;
+    let se_estaba_jugando_el_truco = p.ronda.truco.estado.es_truco_respondible();
+    // no se puede ir al mazo sii:
+    // 1. el fue el que canto el envido (y el envido esta en juego)
+    // 2. tampoco se puede ir al mazo si el canto la flor o similar
+    // 3. tampoco se puede ir al mazo si el grito el truco
+
+    // envidoPropuesto = Contains([]EstadoEnvite{EstadoEnvite::Envido, EstadoEnvite::RealEnvido, EstadoEnvite::FaltaEnvido}, p.ronda.envite.estado);
+    // envidoPropuestoPorSuEquipo = p.ronda.manojo[p.ronda.envite.cantado_por].jugador.equipo == p.ronda.manojo(&self.jid).jugador.equipo;
+    // trucoPropuesto = p.ronda.truco.estado.es_truco_respondible();
+    // trucoPropuestoPorSuEquipo = p.ronda.manojo[p.ronda.truco.cantado_por].jugador.equipo == p.ronda.manojo(&self.jid).jugador.equipo;
+    // condicionDelBobo = (envidoPropuesto && envidoPropuestoPorSuEquipo) || (trucoPropuesto && trucoPropuestoPorSuEquipo);
+
+    // if condicionDelBobo {
+
+    // enco.Write(p.Stdout, enco.Pkt(
+    // 	enco.Dest(p.ronda.manojo(&self.jid).jugador.id),
+    // 	enco.Msg(enco.Error,  fmt.Sprintf("No es posible irse al mazo ahora porque hay propuestas de tu equipo sin responder")),
+    // ))
+
+    // return
+
+    // }
+
+    let no_se_puede_ir_por_el_envite = (se_estaba_jugando_el_envido || se_estaba_jugando_la_flor) && p.ronda.envite.cantado_por == self.jid;
+    // la de la flor es igual al del envido; porque es un envite
+    let no_se_puede_ir_por_el_truco = se_estaba_jugando_el_truco && p.ronda.truco.cantado_por == self.jid;
+    if no_se_puede_ir_por_el_envite || no_se_puede_ir_por_el_truco {
+      if p.verbose {
+        pkts.push(enco::Packet{
+          destination: vec![self.jid.clone()],
+          message: enco::Message(
+            enco::Content::Error {
+              msg: "No es posible irse al mazo ahora".to_string(),
+            }
+          )
+        });
+      }
+      return (pkts, false);
+    }
+
+    // por como esta hecho el algoritmo EvaluarMano:
+
+    let es_primera_mano = p.ronda.mano_en_juego == NumMano::Primera;
+    let tiradas = &p.ronda.get_mano_actual().cartas_tiradas;
+    let n = tiradas.len();
+    let j = tiradas[n-1].jugador.clone();
+    let ultima_tirada_equipo = p.ronda.manojo(&j).jugador.equipo;
+    let solo_mi_equipo_tiro = n == 1 && ultima_tirada_equipo == p.ronda.manojo(&self.jid).jugador.equipo;
+    let equipo_del_jugador = p.ronda.manojo(&self.jid).jugador.equipo;
+    let soy_el_unico_de_mi_equipo = p.ronda.cant_jugadores_en_juego[&equipo_del_jugador] == 1;
+    let no_se_puede_ir = es_primera_mano && solo_mi_equipo_tiro && soy_el_unico_de_mi_equipo;
+
+    // que pasa si alguien dice truco y se va al mazo?
+
+    if no_se_puede_ir {
+      if p.verbose {
+        pkts.push(enco::Packet{
+          destination: vec![self.jid.clone()],
+          message: enco::Message(
+            enco::Content::Error {
+              msg: "No es posible irse al mazo ahora".to_string(),
+            }
+          )
+        });
+      }
+      return (pkts, false);
+    }
     (pkts, true)
   }
 
@@ -1789,7 +1872,223 @@ impl Foo {
       return pkts
     }
 
+    // ok -> se va al mazo:
+    if p.verbose {
+      pkts.push(enco::Packet{
+        destination: vec!["ALL".to_string()],
+        message: enco::Message(
+          enco::Content::Mazo {
+            autor: self.jid.clone(),
+          }
+        )
+      });
+    }
+
+    p.ir_al_mazo(&self.jid);
+
+    let equipo_del_jugador = p.ronda.manojo(&self.jid).jugador.equipo;
+
+    let se_fueron_todos = p.ronda.cant_jugadores_en_juego[&equipo_del_jugador] == 0;
+
+    // si tenia flor -> ya no lo tomo en cuenta
+    let (tiene_flor, _) = p.ronda.manojo(&self.jid).tiene_flor(&p.ronda.muestra);
+    if tiene_flor {
+      p.ronda.envite.jugadores_con_flor
+        .remove(
+          p.ronda.envite.jugadores_con_flor
+                  .iter()
+                  .position(|x| *x == self.jid)
+                  .expect("needle not found")
+        );
+
+      p.ronda.envite.canto_flor(&self.jid);
+      // que pasa si era el ultimo que se esperaba que cantara flor?
+      // tengo que Hacer el Eval de la flor
+      let todos_los_jugadores_con_flor_cantaron = p.ronda.envite.sin_cantar.len() == 0;
+      if todos_los_jugadores_con_flor_cantaron {
+        let mut res = eval_flor(p);
+        pkts.append(&mut res);
+      }
+    }
+
+    // era el ultimo en tirar de esta mano?
+    let era_el_ultimo_en_tirar = 
+      p.ronda.get_siguiente_habilitado(p.ronda.manojo(&self.jid)).is_none();
+
+    if se_fueron_todos {
+
+      let se_estaba_jugando_el_envido = p.ronda.envite.estado >= EstadoEnvite::Envido && p.ronda.envite.estado <= EstadoEnvite::FaltaEnvido;
+      let se_estaba_jugando_la_flor = p.ronda.envite.estado >= EstadoEnvite::Flor;
+
+      // el equipo contrario gana la ronda
+      // y todo lo que estaba en juego hasta ahora
+      // envido; flor; truco;
+      // si no habia nada en juego -> suma 1 punto
+
+      if se_estaba_jugando_el_envido {
+        // cuenta como un "no quiero"
+
+        // codigo copiado de "no quiero"
+        //	no se toma en cuenta el puntaje total del ultimo toque
+        let total_pts: usize = match p.ronda.envite.estado {
+          EstadoEnvite::Envido => (p.ronda.envite.estado as usize) - 1,
+          EstadoEnvite::RealEnvido => (p.ronda.envite.estado as usize) - 2,
+          EstadoEnvite::FaltaEnvido => (p.ronda.envite.estado as usize) + 1,
+          _ => unreachable!()
+        };
+
+        p.ronda.envite.estado = EstadoEnvite::Deshabilitado;
+        p.ronda.envite.sin_cantar = Vec::new();
+        p.ronda.envite.puntaje = total_pts;
+
+        if p.verbose {
+          pkts.push(enco::Packet{
+            destination: vec!["ALL".to_string()],
+            message: enco::Message(
+              enco::Content::SumaPts {
+                autor: p.ronda.envite.cantado_por.clone(),
+                razon: enco::Razon::EnviteNoQuerido,
+                pts: total_pts
+              }
+            )
+          });
+        }
+
+        p.suma_puntos(
+          p.ronda.manojo(&p.ronda.envite.cantado_por).jugador.equipo, 
+          total_pts
+        );
+
+      }
+
+      if se_estaba_jugando_la_flor {
+        // cuenta como un "no quiero"
+        // segun el estado de la apuesta actual:
+        // los "me achico" no cuentan para la flor
+        // Flor		xcg(+3) / xcg(+3)
+        // Flor + Contra-Flor		xc(+3) / xCadaFlorDelQueHizoElDesafio(+3) + 1
+        // Flor + [Contra-Flor] + ContraFlorAlResto		~Falta Envido + *TODAS* las flores no achicadas / xcg(+3) + 1
+
+        // sumo todas las flores del equipo contrario
+        let mut total_pts = 0;
+
+        for m in p.ronda.manojos.iter() {
+          let es_del_equipo_contrario = p.ronda.manojo(&p.ronda.envite.cantado_por).jugador.equipo != p.ronda.manojo(&self.jid).jugador.equipo;
+          let (tiene_flor, _) = m.tiene_flor(&p.ronda.muestra);
+          if tiene_flor && es_del_equipo_contrario {
+            total_pts += 3
+          }
+        }
+
+        if p.ronda.envite.estado == EstadoEnvite::ContraFlor || p.ronda.envite.estado == EstadoEnvite::ContraFlorAlResto {
+          // si es contraflor o al resto
+          // se suma 1 por el `no quiero`
+          total_pts += 1;
+        }
+
+        p.ronda.envite.estado = EstadoEnvite::Deshabilitado;
+        p.ronda.envite.sin_cantar = Vec::new();
+
+        if p.verbose {
+          pkts.push(enco::Packet{
+            destination: vec!["ALL".to_string()],
+            message: enco::Message(
+              enco::Content::SumaPts {
+                autor: p.ronda.envite.cantado_por.clone(),
+                razon: enco::Razon::FlorAchicada,
+                pts: total_pts
+              }
+            )
+          });
+        }
+    
+        p.suma_puntos(
+          p.ronda.manojo(&p.ronda.envite.cantado_por).jugador.equipo, 
+          total_pts
+        );
+
+      }
+    }
+
+    // evaluar ronda sii:
+    // o bien se fueron todos
+    // o bien este se fue al mazo, pero alguno de sus companeros no
+    // (es decir que queda al menos 1 jugador en juego)
+    let hay_que_evaluar_ronda = se_fueron_todos || era_el_ultimo_en_tirar;
+    if hay_que_evaluar_ronda {
+      // de ser asi tengo que checkear el resultado de la mano
+      // el turno del siguiente queda dado por el ganador de esta
+      let (empieza_nueva_ronda, mut res) = p.evaluar_mano();
+      pkts.append(&mut res);
+
+      if !empieza_nueva_ronda {
+
+        // esta parte no tiene sentido: si se fue al mazo se sabe que va a
+        // empezar una nueva ronda. Este `if` es codigo muerto
+
+        // actualizo el mano
+        p.ronda.mano_en_juego.inc();
+        p.ronda.set_next_turno_pos_mano();
+        // lo envio
+        if p.verbose {
+          pkts.push(enco::Packet{
+            destination: vec!["ALL".to_string()],
+            message: enco::Message(
+              enco::Content::SigTurnoPosMano {
+                pos: p.ronda.turno
+              }
+            )
+          });
+        }
+
+      } else {
+
+        if !p.terminada() {
+          // ahora se deberia de incrementar el mano
+          // y ser el turno de este
+          let sig_mano = p.ronda.get_sig_el_mano();
+          p.ronda.nueva_ronda(sig_mano); // todo: el tema es que cuando llama aca
+          // no manda mensaje de que arranco nueva ronda
+          // falso: el padre que llama a .EvaluarRonda tiene que fijarse si
+          // retorno true
+          // entonces debe crearla el
+          // no es responsabilidad de EvaluarRonda arrancar una ronda nueva!!
+          // de hecho, si una ronda es terminable y se llama 2 veces consecutivas
+          // al mismo metodo booleano, en ambas oportunidades retorna diferente
+          // ridiculo
+
+          if p.verbose {
+            for _m in p.ronda.manojos.iter() {
+              // todo!()
+              // aca envia las perspectivas
+              // pkts = append(pkts, enco.Pkt(
+              //   enco.Dest(m.jugador.id),
+              //   enco.Msg(enco.NuevaRonda, p.PerspectivaCacheFlor(&m)),
+              // ))
+            }
+          }
+
+        }
+      }
+    } else {
+      // cambio de turno solo si era su turno
+      let era_su_turno = p.ronda.get_el_turno().jugador.id == p.ronda.manojo(&self.jid).jugador.id;
+      if era_su_turno {
+        p.ronda.set_next_turno();
+        if p.verbose {
+          pkts.push(enco::Packet{
+            destination: vec!["ALL".to_string()],
+            message: enco::Message(
+              enco::Content::SigTurno {
+                pos: p.ronda.turno
+              }
+            )
+          });
+        }
+      }
+    }
+
     pkts
   }
 }
-*/
+
