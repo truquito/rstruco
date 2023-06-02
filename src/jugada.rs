@@ -2,6 +2,7 @@ use std::fmt::Debug;
 use crate::partida::{Partida};
 use crate::{enco, EstadoEnvite, NumMano, EstadoTruco};
 use crate::carta::{Carta};
+use crate::equipo::{Equipo};
 
 pub enum IJugadaId {
   JIdTirarCarta = 0,
@@ -752,6 +753,175 @@ impl TocarFaltaEnvido {
     }
 
     p.suma_puntos(jug.equipo, p.ronda.envite.puntaje);
+
+    pkts
+  }
+}
+
+pub struct CantarFlor {
+  pub jid: String,
+}
+
+/*
+
+struct A
+  ronda B
+
+B.foo() retornaba un vector xs.
+yo queria obtenerlo de forma mutable
+en una funcion que tenia como arg a &A
+
+fn bar(&A)
+  mut xs = foo()
+
+no me dejaba hasta que defini fn como `fn bar(&mut A)`
+
+
+*/
+
+fn eval_flor(p: &mut Partida) -> Vec<enco::Packet> {
+  let mut pkts: Vec<enco::Packet> = Vec::new();
+
+	let flor_en_juego = p.ronda.envite.estado >= EstadoEnvite::Flor;
+	let todos_los_jugadores_con_flor_cantaron = p.ronda.envite.sin_cantar.len() == 0;
+	let ok = todos_los_jugadores_con_flor_cantaron && flor_en_juego;
+	if !ok {
+		return pkts
+	}
+
+  // cual es la flor ganadora?
+	// empieza cantando el autor del envite no el que "quizo"
+	let autor_idx = p.ronda.mixs[&p.ronda.envite.cantado_por];
+
+  let equipo_ganador: Equipo;
+  let ganador: String;
+
+  {
+    let (manojo_con_la_flor_mas_alta, _, mut res) = 
+      p.ronda.exec_las_flores(autor_idx, p.verbose);
+  
+    pkts.append(&mut res);
+    equipo_ganador = manojo_con_la_flor_mas_alta.jugador.equipo;
+    ganador = manojo_con_la_flor_mas_alta.jugador.id.clone();
+  }
+
+  let puntos_asumar = p.ronda.envite.puntaje;
+	p.suma_puntos(equipo_ganador, puntos_asumar);
+
+	let habia_solo1_jugador_con_flor = p.ronda.envite.jugadores_con_flor.len() == 1;
+  let razon = match habia_solo1_jugador_con_flor {
+      true => enco::Razon::LaUnicaFlor,
+      false => enco::Razon::LaFlorMasAlta,
+  };
+	if p.verbose {
+    pkts.push(enco::Packet{
+      destination: vec!["ALL".to_string()],
+      message: enco::Message(
+        enco::Content::SumaPts { 
+          autor: ganador, 
+          razon: razon, 
+          pts: puntos_asumar
+        }
+      )
+    });
+  }
+
+  p.ronda.envite.estado = EstadoEnvite::Deshabilitado;
+	p.ronda.envite.sin_cantar = Vec::new();
+
+  pkts
+}
+
+impl CantarFlor {
+  pub fn id() -> IJugadaId {
+    IJugadaId::JIdFlor
+  }
+  pub fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
+    let mut pkts: Vec<enco::Packet> = Vec::new();
+    // manojo dice que puede cantar flor;
+    // es esto verdad?
+    let se_fue_al_mazo = p.ronda.manojo(&self.jid).se_fue_al_mazo;
+    let flor_habilitada = (p.ronda.envite.estado >= EstadoEnvite::NoCantadoAun) && p.ronda.mano_en_juego == NumMano::Primera;
+    let (tiene_flor, _) = p.ronda.manojo(&self.jid).tiene_flor(&p.ronda.muestra);
+    let no_canto_flor_aun = p.ronda.envite.no_canto_flor_aun(&p.ronda.manojo(&self.jid).jugador.id);
+    
+    let ok = !se_fue_al_mazo && flor_habilitada && tiene_flor && no_canto_flor_aun;
+
+    if !ok {
+      if p.verbose {
+        pkts.push(enco::Packet{
+          destination: vec![self.jid.clone()],
+          message: enco::Message(
+            enco::Content::Error {
+              msg: "No es posible cantar flor".to_string(),
+            }
+          )
+        });
+      }
+      return (pkts, false)
+    }
+    (pkts, true)
+  }
+
+  pub fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet> {
+    let mut pkts: Vec<enco::Packet> = Vec::new();
+    let (mut pre, ok) = self.ok(p);
+    pkts.append(&mut pre);
+
+    if !ok {
+      return pkts
+    }
+
+    // yo canto
+    if p.verbose {
+      pkts.push(enco::Packet{
+        destination: vec!["ALL".to_string()],
+        message: enco::Message(
+          enco::Content::CantarContraFlor {
+            autor: self.jid.clone(),
+          }
+        )
+      });
+    }
+
+    p.ronda.truco.cantado_por = "".to_string();
+	  p.ronda.truco.estado = EstadoTruco::NoCantado;
+
+    // y me elimino de los que no-cantaron
+    p.ronda.envite.canto_flor(&self.jid);
+    p.cantar_flor(&self.jid);
+
+    // es el ultimo en cantar flor que faltaba?
+    // o simplemente es el unico que tiene flor (caso particular)
+    let todos_los_jugadores_con_flor_cantaron = p.ronda.envite.sin_cantar.len() == 0;
+    if todos_los_jugadores_con_flor_cantaron {
+      let mut res = eval_flor(p);
+      pkts.append(&mut res);
+    } else {
+      // cachear esto
+      // solos los de su equipo tienen flor?
+      // si solos los de su equipo tienen flor (y los otros no) -> las canto todas
+      let mut solo_los_de_su_equipo_tienen_flor = true;
+
+      for jid in p.ronda.envite.jugadores_con_flor.iter() {
+        let manojo = p.ronda.manojo(jid);
+        if manojo.jugador.equipo != p.ronda.manojo(&self.jid).jugador.equipo {
+          solo_los_de_su_equipo_tienen_flor = false;
+          break
+        }
+      }
+
+      if solo_los_de_su_equipo_tienen_flor {
+        // los quiero llamar a todos, pero no quiero Hacer llamadas al pedo
+        // entonces: llamo al primero sin cantar, y que este llame al proximo
+        // y que el proximo llame al siguiente, y asi...
+        let jid = p.ronda.envite.sin_cantar[0].clone();
+        // j = p.ronda.manojo(jid);
+        let siguiente_jugada = CantarFlor{ jid };
+        let mut res = siguiente_jugada.hacer(p);
+        pkts.append(&mut res);
+      }
+    }
 
     pkts
   }

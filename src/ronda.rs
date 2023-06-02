@@ -451,7 +451,7 @@ impl Ronda {
     return (jidx, max_envido, pkts);
   }
 
-  pub fn exec_las_flores(&mut self, a_partir_de:usize, verbose: bool) -> 
+  pub fn exec_las_flores(&self, a_partir_de:usize, verbose: bool) -> 
     (&Manojo, usize, Vec<enco::Packet>) {
     
     let mut pkts: Vec<enco::Packet> = Vec::new();
