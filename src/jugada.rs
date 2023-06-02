@@ -1,8 +1,7 @@
 use std::fmt::Debug;
 use crate::partida::{Partida};
-use crate::{enco, EstadoEnvite, NumMano, EstadoTruco};
+use crate::{enco, EstadoEnvite, NumMano, EstadoTruco, Resultado};
 use crate::carta::{Carta};
-use crate::manojo::{Manojo};
 use crate::equipo::{Equipo};
 
 pub enum IJugadaId {
@@ -1490,6 +1489,277 @@ impl ResponderQuiero {
         });
       }
       p.querer_truco(&self.jid)
+    }
+
+    pkts
+  }
+}
+
+pub struct ResponderNoQuiero {
+  pub jid: String,
+}
+impl ResponderNoQuiero {
+  pub fn id() -> IJugadaId {
+    IJugadaId::JIdNoQuiero
+  }
+  pub fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
+    let mut pkts: Vec<enco::Packet> = Vec::new();
+    
+    let se_fue_al_mazo = p.ronda.manojo(&self.jid).se_fue_al_mazo;
+    if se_fue_al_mazo {
+      if p.verbose {
+        pkts.push(enco::Packet{
+          destination: vec![self.jid.clone()],
+          message: enco::Message(
+            enco::Content::Error {
+              msg: "Te fuiste al mazo; no podes Hacer esta jugada".to_string(),
+            }
+          )
+        });
+      }
+      return (pkts, false);
+    }
+
+    // checkeo flor en juego
+    // caso particular del checkeo: no se le puede decir quiero a la flor
+    // pero si a la contra flor o contra flor al resto
+    // FALSO porque el no quiero lo estoy contando como un "con flor me achico"
+    // todo: agregar la jugada: "con flor me achico" y editar la variale:
+    // AHORA:
+    // laFlorEsRespondible = p.ronda.Flor >= EstadoEnvite::Flor && p.ronda.manojo[p.ronda.envite.cantado_por].jugador.equipo != p.ronda.manojo(&self.jid).jugador.equipo;
+    // LUEGO DE AGREGAR LA JUGADA "con flor me achico"
+    // laFlorEsRespondible = p.ronda.Flor > EstadoEnvite::Flor;
+    // FALSO ---> directamente se va la posibilidad de reponderle
+    // "no quiero a la flor"
+
+    // se acepta una respuesta 'no quiero' solo cuando:
+    // - CASO I: se toco el envido (o similar)
+    // - CASO II: se grito el truco (o similar)
+    // en caso contrario, es incorrecto -> error
+
+    let el_envido_es_respondible = (p.ronda.envite.estado >= EstadoEnvite::Envido && p.ronda.envite.estado <= EstadoEnvite::FaltaEnvido) && p.ronda.envite.cantado_por != p.ronda.manojo(&self.jid).jugador.id;
+    let la_flor_es_respondible = p.ronda.envite.estado >= EstadoEnvite::Flor && p.ronda.envite.cantado_por != p.ronda.manojo(&self.jid).jugador.id;
+    let el_truco_es_respondible = p.ronda.truco.estado.es_truco_respondible() && p.ronda.manojo(&p.ronda.truco.cantado_por).jugador.equipo != p.ronda.manojo(&self.jid).jugador.equipo;
+
+    let ok = el_envido_es_respondible || la_flor_es_respondible || el_truco_es_respondible;
+
+    if !ok {
+      // si no, esta respondiendo al pedo
+      let err = 
+        format!(
+          "{} esta respondiendo al pedo; no hay nada respondible",
+          self.jid.clone()
+        );
+      if p.verbose {
+        pkts.push(enco::Packet{
+          destination: vec![self.jid.clone()],
+          message: enco::Message(
+            enco::Content::Error {
+              msg: err,
+            }
+          )
+        });
+      }
+      return (pkts, false);
+    }
+
+    if el_envido_es_respondible {
+      let es_del_equipo_contrario = p.ronda.manojo(&self.jid).jugador.equipo != p.ronda.manojo(&p.ronda.envite.cantado_por).jugador.equipo;
+      if !es_del_equipo_contrario {
+        if p.verbose {
+          pkts.push(enco::Packet{
+            destination: vec![self.jid.clone()],
+            message: enco::Message(
+              enco::Content::Error {
+                msg: "La jugada no es valida".to_string(),
+              }
+            )
+          });
+        }
+        return (pkts, false);
+      }
+    } else if la_flor_es_respondible {
+      // tengo que verificar si efectivamente tiene flor
+      let (tiene_flor, _) = p.ronda.manojo(&self.jid).tiene_flor(&p.ronda.muestra);
+      let es_del_equipo_contrario = p.ronda.manojo(&self.jid).jugador.equipo != p.ronda.manojo(&p.ronda.envite.cantado_por).jugador.equipo;
+      let ok = tiene_flor && es_del_equipo_contrario;
+
+      if !ok {
+        if p.verbose {
+          pkts.push(enco::Packet{
+            destination: vec![self.jid.clone()],
+            message: enco::Message(
+              enco::Content::Error {
+                msg: "La jugada no es valida".to_string(),
+              }
+            )
+          });
+        }
+        return (pkts, false);
+      }
+    }
+    (pkts, true)
+  }
+
+  pub fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet> {
+    let mut pkts: Vec<enco::Packet> = Vec::new();
+    let (mut pre, ok) = self.ok(p);
+    pkts.append(&mut pre);
+
+    if !ok {
+      return pkts
+    }
+
+    let el_envido_es_respondible = (p.ronda.envite.estado >= EstadoEnvite::Envido && p.ronda.envite.estado <= EstadoEnvite::FaltaEnvido) && p.ronda.envite.cantado_por != self.jid;
+    let la_flor_es_respondible = p.ronda.envite.estado >= EstadoEnvite::Flor && p.ronda.envite.cantado_por != self.jid;
+    let el_truco_es_respondible = p.ronda.truco.estado.es_truco_respondible() && p.ronda.manojo(&p.ronda.truco.cantado_por).jugador.equipo != p.ronda.manojo(&self.jid).jugador.equipo;
+
+    if el_envido_es_respondible {
+      if p.verbose {
+        pkts.push(enco::Packet{
+          destination: vec!["ALL".to_string()],
+          message: enco::Message(
+            enco::Content::NoQuiero {
+              autor: self.jid.clone(),
+            }
+          )
+        });
+      }
+
+      //	no se toma en cuenta el puntaje total del ultimo toque
+
+      let total_pts: usize = match p.ronda.envite.estado {
+        EstadoEnvite::Envido => p.ronda.envite.puntaje - 1,
+        EstadoEnvite::RealEnvido => p.ronda.envite.puntaje - 2,
+        EstadoEnvite::FaltaEnvido => p.ronda.envite.puntaje + 1,
+        _ => unreachable!()
+      };
+
+      p.ronda.envite.estado = EstadoEnvite::Deshabilitado;
+      p.ronda.envite.sin_cantar = Vec::new();
+      p.ronda.envite.puntaje = total_pts;
+
+      if p.verbose {
+        pkts.push(enco::Packet{
+          destination: vec!["ALL".to_string()],
+          message: enco::Message(
+            enco::Content::SumaPts {
+              autor: p.ronda.envite.cantado_por.clone(),
+              razon: enco::Razon::EnviteNoQuerido,
+              pts: total_pts
+            }
+          )
+        });
+      }
+
+      p.suma_puntos(
+        p.ronda.manojo(&p.ronda.envite.cantado_por).jugador.equipo, 
+        total_pts
+      );
+
+    } else if la_flor_es_respondible {
+
+      if p.verbose {
+        pkts.push(enco::Packet{
+          destination: vec!["ALL".to_string()],
+          message: enco::Message(
+            enco::Content::ConFlorMeAchico {
+              autor: self.jid.clone(),
+            }
+          )
+        });
+      }
+
+      // sumo todas las flores del equipo contrario
+      let mut total_pts = 0;
+
+      for m in p.ronda.manojos.iter() {
+        let es_del_equipo_contrario = p.ronda.manojo(&p.ronda.envite.cantado_por).jugador.equipo != p.ronda.manojo(&self.jid).jugador.equipo;
+        let (tiene_flor, _) = m.tiene_flor(&p.ronda.muestra);
+        if tiene_flor && es_del_equipo_contrario {
+          total_pts += 3
+        }
+      }
+
+      if p.ronda.envite.estado == EstadoEnvite::ContraFlor || p.ronda.envite.estado == EstadoEnvite::ContraFlorAlResto {
+        // si es contraflor o al resto
+        // se suma 1 por el `no quiero`
+        total_pts += 1;
+      }
+
+      p.ronda.envite.estado = EstadoEnvite::Deshabilitado;
+      p.ronda.envite.sin_cantar = Vec::new();
+      if p.verbose {
+        pkts.push(enco::Packet{
+          destination: vec!["ALL".to_string()],
+          message: enco::Message(
+            enco::Content::SumaPts { 
+              autor: p.ronda.envite.cantado_por.clone(),
+              razon: enco::Razon::FlorAchicada,
+              pts: total_pts
+            }
+          )
+        });
+      }
+      p.suma_puntos(
+        p.ronda.manojo(&p.ronda.envite.cantado_por).jugador.equipo, 
+        total_pts
+      );
+
+    } else if el_truco_es_respondible {
+      if p.verbose {
+        pkts.push(enco::Packet{
+          destination: vec!["ALL".to_string()],
+          message: enco::Message(
+            enco::Content::NoQuiero { 
+              autor: self.jid.clone(),
+            }
+          )
+        });
+      }
+
+      // pongo al equipo que propuso el truco como ganador de la mano actual
+      let mano_actual = p.ronda.mano_en_juego as usize;
+      p.ronda.manos[mano_actual].ganador = p.ronda.truco.cantado_por.clone();
+      let mut equipo_ganador = Resultado::GanoAzul;
+      if p.ronda.manojo(&p.ronda.truco.cantado_por).jugador.equipo == Equipo::Rojo {
+        equipo_ganador = Resultado::GanoRojo;
+      }
+      p.ronda.manos[mano_actual].resultado = equipo_ganador;
+
+      let (nueva_ronda, mut res) = p.evaluar_ronda();
+      pkts.append(&mut res);
+      if nueva_ronda {
+        if !p.terminada() {
+          // ahora se deberia de incrementar el mano
+          // y ser el turno de este
+          let sig_mano = p.ronda.get_sig_el_mano();
+          p.ronda.nueva_ronda(sig_mano); // todo: el tema es que cuando llama aca
+          // no manda mensaje de que arranco nueva ronda
+          // falso: el padre que llama a .EvaluarRonda tiene que fijarse si
+          // retorno true
+          // entonces debe crearla el
+          // no es responsabilidad de EvaluarRonda arrancar una ronda nueva!!
+          // de hecho, si una ronda es terminable y se llama 2 veces consecutivas
+          // al mismo metodo booleano, en ambas oportunidades retorna diferente
+          // ridiculo
+          for _m in p.ronda.manojos.iter() {
+
+            // todo: aca va una perspctiva de p segun m
+            // todo!()
+            // pkts = append(pkts, enco.Pkt(
+            //   enco.Dest(m.jugador.id),
+            //   enco.Msg(enco.NuevaRonda, p.PerspectivaCacheFlor(&m)),
+            // ))
+
+          }
+
+        } // else {
+        // p.byeBye()
+        // }
+
+      }
+
     }
 
     pkts
