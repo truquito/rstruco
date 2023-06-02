@@ -129,7 +129,7 @@ impl TirarCarta {
 
     // luego, era su turno?
     let era_su_turno = 
-      p.ronda.get_el_turno().jugador.id == p.ronda.manojo(&self.jid).jugador.id;
+      p.ronda.get_el_turno().jugador.id == self.jid;
     if !era_su_turno {
       if p.verbose {
         pkts.push(enco::Packet{
@@ -147,7 +147,7 @@ impl TirarCarta {
     // checkeo si tiene flor
     let flor_habilitada = (p.ronda.envite.estado >= EstadoEnvite::NoCantadoAun && p.ronda.envite.estado <= EstadoEnvite::Flor) && p.ronda.mano_en_juego == NumMano::Primera;
     let (tiene_flor, _) = p.ronda.manojo(&self.jid).tiene_flor(&p.ronda.muestra);
-    let no_canto_flor_aun = p.ronda.envite.no_canto_flor_aun(&p.ronda.manojo(&self.jid).jugador.id);
+    let no_canto_flor_aun = p.ronda.envite.no_canto_flor_aun(&self.jid);
     let no_puede_tirar = flor_habilitada && tiene_flor && no_canto_flor_aun;
     if no_puede_tirar {
       if p.verbose {
@@ -166,7 +166,7 @@ impl TirarCarta {
     // cambio: ahora no puede tirar carta si el grito truco
     let truco_gritado = p.ronda.truco.estado.es_truco_respondible();
     let uno_del_equipo_contrario_grito_truco = truco_gritado && p.ronda.manojo(&p.ronda.truco.cantado_por).jugador.equipo != p.ronda.manojo(&self.jid).jugador.equipo;
-    let yo_gite_el_truco = truco_gritado && p.ronda.manojo(&self.jid).jugador.id == p.ronda.truco.cantado_por;
+    let yo_gite_el_truco = truco_gritado && self.jid == p.ronda.truco.cantado_por;
     let el_truco_es_respondible = truco_gritado && uno_del_equipo_contrario_grito_truco && !yo_gite_el_truco;
     if el_truco_es_respondible {
       if p.verbose {
@@ -323,7 +323,7 @@ impl TocarEnvido {
     }
     let se_fue_al_mazo = p.ronda.manojo(&self.jid).se_fue_al_mazo;
     let es_primera_mano = p.ronda.mano_en_juego == NumMano::Primera;
-    let es_su_turno = p.ronda.get_el_turno().jugador.id == p.ronda.manojo(&self.jid).jugador.id;
+    let es_su_turno = p.ronda.get_el_turno().jugador.id == self.jid;
     let (tiene_flor, _) = p.ronda.manojo(&self.jid).tiene_flor(&p.ronda.muestra);
     let envido_habilitado = p.ronda.envite.estado == EstadoEnvite::NoCantadoAun || p.ronda.envite.estado == EstadoEnvite::Envido;
     
@@ -484,7 +484,7 @@ impl TocarRealEnvido {
     }
     let se_fue_al_mazo = p.ronda.manojo(&self.jid).se_fue_al_mazo;
     let es_primera_mano = p.ronda.mano_en_juego == NumMano::Primera;
-    let es_su_turno = p.ronda.get_el_turno().jugador.id == p.ronda.manojo(&self.jid).jugador.id;
+    let es_su_turno = p.ronda.get_el_turno().jugador.id == self.jid;
     let (tiene_flor, _) = p.ronda.manojo(&self.jid).tiene_flor(&p.ronda.muestra);
     let real_envido_habilitado = p.ronda.envite.estado == EstadoEnvite::NoCantadoAun || p.ronda.envite.estado == EstadoEnvite::Envido;
 
@@ -614,7 +614,7 @@ impl TocarFaltaEnvido {
       return (pkts, false)
     }
     let se_fue_al_mazo = p.ronda.manojo(&self.jid).se_fue_al_mazo;
-    let es_su_turno = p.ronda.get_el_turno().jugador.id == p.ronda.manojo(&self.jid).jugador.id;
+    let es_su_turno = p.ronda.get_el_turno().jugador.id == self.jid;
     let es_primera_mano = p.ronda.mano_en_juego == NumMano::Primera;
     let (tiene_flor, _) = p.ronda.manojo(&self.jid).tiene_flor(&p.ronda.muestra);
     let falta_envido_habilitado = p.ronda.envite.estado >= EstadoEnvite::NoCantadoAun && p.ronda.envite.estado < EstadoEnvite::FaltaEnvido;
@@ -837,7 +837,7 @@ impl CantarFlor {
     let se_fue_al_mazo = p.ronda.manojo(&self.jid).se_fue_al_mazo;
     let flor_habilitada = (p.ronda.envite.estado >= EstadoEnvite::NoCantadoAun) && p.ronda.mano_en_juego == NumMano::Primera;
     let (tiene_flor, _) = p.ronda.manojo(&self.jid).tiene_flor(&p.ronda.muestra);
-    let no_canto_flor_aun = p.ronda.envite.no_canto_flor_aun(&p.ronda.manojo(&self.jid).jugador.id);
+    let no_canto_flor_aun = p.ronda.envite.no_canto_flor_aun(&self.jid);
     
     let ok = !se_fue_al_mazo && flor_habilitada && tiene_flor && no_canto_flor_aun;
 
@@ -1061,7 +1061,7 @@ impl GritarTruco {
 
     let la_flor_esta_primero = yo_ouno_de_mis_compas_tiene_flor_yaun_no_canto;
     let truco_no_se_jugo_aun = p.ronda.truco.estado == EstadoTruco::NoCantado;
-    let es_su_turno = p.ronda.get_el_turno().jugador.id == p.ronda.manojo(&self.jid).jugador.id;
+    let es_su_turno = p.ronda.get_el_turno().jugador.id == self.jid;
     let truco_habilitado = no_se_fue_al_mazo && truco_no_se_jugo_aun && no_se_esta_jugando_el_envite && !la_flor_esta_primero && es_su_turno;
 
     if !truco_habilitado {
@@ -1537,8 +1537,8 @@ impl ResponderNoQuiero {
     // - CASO II: se grito el truco (o similar)
     // en caso contrario, es incorrecto -> error
 
-    let el_envido_es_respondible = (p.ronda.envite.estado >= EstadoEnvite::Envido && p.ronda.envite.estado <= EstadoEnvite::FaltaEnvido) && p.ronda.envite.cantado_por != p.ronda.manojo(&self.jid).jugador.id;
-    let la_flor_es_respondible = p.ronda.envite.estado >= EstadoEnvite::Flor && p.ronda.envite.cantado_por != p.ronda.manojo(&self.jid).jugador.id;
+    let el_envido_es_respondible = (p.ronda.envite.estado >= EstadoEnvite::Envido && p.ronda.envite.estado <= EstadoEnvite::FaltaEnvido) && p.ronda.envite.cantado_por != self.jid;
+    let la_flor_es_respondible = p.ronda.envite.estado >= EstadoEnvite::Flor && p.ronda.envite.cantado_por != self.jid;
     let el_truco_es_respondible = p.ronda.truco.estado.es_truco_respondible() && p.ronda.manojo(&p.ronda.truco.cantado_por).jugador.equipo != p.ronda.manojo(&self.jid).jugador.equipo;
 
     let ok = el_envido_es_respondible || la_flor_es_respondible || el_truco_es_respondible;
