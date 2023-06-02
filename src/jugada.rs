@@ -431,6 +431,30 @@ impl TocarEnvido {
 
     pkts
   }
+
+  pub fn eval(&self, p:&mut Partida) -> Vec<enco::Packet> {
+    let mut pkts: Vec<enco::Packet> = Vec::new();
+    
+    p.ronda.envite.estado = EstadoEnvite::Deshabilitado;
+    p.ronda.envite.sin_cantar = Vec::new();
+    let (j_ix, _, mut res) = p.ronda.exec_el_envido(p.verbose);
+    pkts.append(&mut res);
+    let jug = &p.ronda.manojos[j_ix].jugador;
+    if p.verbose {
+      pkts.push(enco::Packet{
+        destination: vec!["ALL".to_string()],
+        message: enco::Message(
+          enco::Content::SumaPts {
+            autor: jug.id.clone(),
+            razon: enco::Razon::EnvidoGanado,
+            pts: p.ronda.envite.puntaje
+          }
+        )
+      });
+    }
+    p.suma_puntos(jug.equipo, p.ronda.envite.puntaje);
+    pkts
+  }
 }
 
 /*
