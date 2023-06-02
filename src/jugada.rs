@@ -199,7 +199,7 @@ impl TirarCarta {
         destination: vec!["ALL".to_string()],
         message: enco::Message(
           enco::Content::TirarCarta {
-            autor: "".to_string(),
+            autor: self.jid.clone(),
             palo: self.carta.palo.to_string(),
             valor: self.carta.valor,
           }
@@ -457,6 +457,138 @@ impl TocarEnvido {
   }
 }
 
+pub struct TocarRealEnvido {
+  pub jid: String,
+}
+impl TocarRealEnvido {
+  pub fn id() -> IJugadaId {
+    IJugadaId::JIdRealEnvido
+  }
+  pub fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
+    let mut pkts: Vec<enco::Packet> = Vec::new();
+    // checkeo flor en juego
+    let flor_en_juego = p.ronda.envite.estado >= EstadoEnvite::Flor;
+    if flor_en_juego {
+      if p.verbose {
+        pkts.push(enco::Packet{
+          destination: vec![self.jid.clone()],
+          message: enco::Message(
+            enco::Content::Error {
+              msg: "No es posible tocar real envido ahora porque la flor esta en juego".to_string(),
+            }
+          )
+        });
+      }
+      return (pkts, false)
+    }
+    let se_fue_al_mazo = p.ronda.manojo(&self.jid).se_fue_al_mazo;
+    let es_primera_mano = p.ronda.mano_en_juego == NumMano::Primera;
+    let es_su_turno = p.ronda.get_el_turno().jugador.id == p.ronda.manojo(&self.jid).jugador.id;
+    let (tiene_flor, _) = p.ronda.manojo(&self.jid).tiene_flor(&p.ronda.muestra);
+    let real_envido_habilitado = p.ronda.envite.estado == EstadoEnvite::NoCantadoAun || p.ronda.envite.estado == EstadoEnvite::Envido;
+
+    if !real_envido_habilitado {
+      if p.verbose {
+        pkts.push(enco::Packet{
+          destination: vec![self.jid.clone()],
+          message: enco::Message(
+            enco::Content::Error {
+              msg: "No es posible tocar real-envido ahora".to_string(),
+            }
+          )
+        });
+      }
+      return (pkts, false)
+    }
+
+    let es_del_equipo_contrario = p.ronda.envite.estado == EstadoEnvite::NoCantadoAun || p.ronda.manojo(&p.ronda.envite.cantado_por).jugador.equipo != p.ronda.manojo(&self.jid).jugador.equipo;
+    let ya_estabamos_en_envido = p.ronda.envite.estado == EstadoEnvite::Envido;
+    let truco_no_cantado = p.ronda.truco.estado == EstadoTruco::NoCantado;
+
+    let esta_iniciando_por_primera_vez_el_envido = es_su_turno && p.ronda.envite.estado == EstadoEnvite::NoCantadoAun && truco_no_cantado;
+    let esta_redoblando_la_apuesta = p.ronda.envite.estado == EstadoEnvite::Envido && es_del_equipo_contrario; // cuando redobla una apuesta puede o no ser su turno;
+    let el_envido_esta_primero = !es_su_turno && p.ronda.truco.estado == EstadoTruco::Truco && !ya_estabamos_en_envido && es_primera_mano;
+
+    let puede_tocar_real_envido = esta_iniciando_por_primera_vez_el_envido || esta_redoblando_la_apuesta || el_envido_esta_primero;
+    let ok = !se_fue_al_mazo && (real_envido_habilitado && es_primera_mano && !tiene_flor && es_del_equipo_contrario) && puede_tocar_real_envido;
+
+    if !ok {
+      if p.verbose {
+        pkts.push(enco::Packet{
+          destination: vec![self.jid.clone()],
+          message: enco::Message(
+            enco::Content::Error {
+              msg: "No es posible cantar 'Real Envido'".to_string(),
+            }
+          )
+        });
+      }
+      return (pkts, false)
+    }
+
+    // ok
+    (pkts, true)
+  }
+
+  pub fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet> {
+    let mut pkts: Vec<enco::Packet> = Vec::new();
+    let (mut pre, ok) = self.ok(p);
+    pkts.append(&mut pre);
+
+    if !ok {
+      return pkts
+    }
+
+    let es_primera_mano = p.ronda.mano_en_juego == NumMano::Primera;
+    let ya_estabamos_en_envido = p.ronda.envite.estado == EstadoEnvite::Envido;
+    let el_envido_esta_primero = p.ronda.truco.estado == EstadoTruco::Truco && !ya_estabamos_en_envido && es_primera_mano;
+
+    if el_envido_esta_primero {
+      // deshabilito el truco
+      p.ronda.truco.estado = EstadoTruco::NoCantado;
+      p.ronda.truco.cantado_por = "".to_string();
+      if p.verbose {
+        pkts.push(enco::Packet{
+          destination: vec!["ALL".to_string()],
+          message: enco::Message(
+            enco::Content::ElEnvidoEstaPrimero {
+              autor: self.jid.clone(),
+            }
+          )
+        });
+      }
+    }
+
+    if p.verbose {
+      pkts.push(enco::Packet{
+        destination: vec!["ALL".to_string()],
+        message: enco::Message(
+          enco::Content::TocarRealEnvido {
+            autor: self.jid.clone(),
+          }
+        )
+      });
+    }
+
+    p.tocar_real_envido(&self.jid);
+  
+    // ahora checkeo si alguien tiene flor
+    let hay_flor = p.ronda.envite.sin_cantar.len() > 0;
+  
+    if hay_flor {
+      // let jid = p.ronda.envite.sin_cantar[0];
+      todo!();
+      // todo!
+      // j = p.ronda.manojo(jid);
+      // let siguienteJugada = CantarFlor{jid};
+      // let res = siguienteJugada.Hacer(p);
+      // pkts = append(pkts, res...)
+    }
+
+    pkts
+  }
+}
+
 /*
 pub struct Foo {
   pub jid: String,
@@ -479,20 +611,6 @@ impl Foo {
     if !ok {
       return pkts
     }
-
-    // // ok la tiene y era su turno -> la juega
-    // if p.verbose {
-    //   pkts.push(enco::Packet{
-    //     destination: vec!["ALL".to_string()],
-    //     message: enco::Message(
-    //       enco::Content::TirarCarta {
-    //         autor: "".to_string(),
-    //         palo: self.carta.palo.to_string(),
-    //         valor: self.carta.valor,
-    //       }
-    //     )
-    //   });
-    // }
 
     pkts
   }
