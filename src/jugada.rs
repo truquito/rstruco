@@ -927,6 +927,68 @@ impl CantarFlor {
   }
 }
 
+pub struct CantarContraFlor {
+  pub jid: String,
+}
+impl CantarContraFlor {
+  pub fn id() -> IJugadaId {
+    IJugadaId::JIdContraFlor
+  }
+  pub fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
+    let mut pkts: Vec<enco::Packet> = Vec::new();
+    let se_fue_al_mazo = p.ronda.manojo(&self.jid).se_fue_al_mazo;
+    let contra_flor_habilitada = p.ronda.envite.estado == EstadoEnvite::Flor && p.ronda.mano_en_juego == NumMano::Primera;
+    let es_del_equipo_contrario = contra_flor_habilitada && p.ronda.manojo(&p.ronda.envite.cantado_por).jugador.equipo != p.ronda.manojo(&self.jid).jugador.equipo;
+    let (tiene_flor, _) = p.ronda.manojo(&self.jid).tiene_flor(&p.ronda.muestra);
+    let no_canto_flor_aun = p.ronda.envite.no_canto_flor_aun(&self.jid);
+    let ok = !se_fue_al_mazo && contra_flor_habilitada && tiene_flor && es_del_equipo_contrario && no_canto_flor_aun;
+    if !ok {
+      if p.verbose {
+        pkts.push(enco::Packet{
+          destination: vec![self.jid.clone()],
+          message: enco::Message(
+            enco::Content::Error {
+              msg: "No es posible cantar contra flor".to_string(),
+            }
+          )
+        });
+      }
+      return (pkts, false)
+    }
+    (pkts, true)
+  }
+
+  pub fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet> {
+    let mut pkts: Vec<enco::Packet> = Vec::new();
+    let (mut pre, ok) = self.ok(p);
+    pkts.append(&mut pre);
+
+    if !ok {
+      return pkts
+    }
+
+    // la canta
+    if p.verbose {
+      pkts.push(enco::Packet{
+        destination: vec!["ALL".to_string()],
+        message: enco::Message(
+          enco::Content::CantarContraFlor {
+            autor: self.jid.clone(),
+          }
+        )
+      });
+    }
+
+    p.cantar_contra_flor(&self.jid);
+    // y ahora tengo que esperar por la respuesta de la nueva
+    // propuesta de todos menos de el que canto la contraflor
+    // restauro la copia
+    p.ronda.envite.canto_flor(&self.jid);
+
+    pkts
+  }
+}
+
 /*
 pub struct Foo {
   pub jid: String,
