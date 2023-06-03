@@ -10,4 +10,6 @@ fn partida_test(){
     true,
   ).unwrap();
   println!("--> {:?}", p.puntajes);
+  let chi: Vec<Vec<Box<dyn IJugada>>> = truco::chi::chis(&p, true);
+  println!("--> {:?}", chi);
 }

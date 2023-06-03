@@ -10,6 +10,7 @@ mod ronda;
 mod partida;
 mod jugada;
 pub mod enco;
+pub mod chi;
 
 // `use` ~ import without namespace
 // `pub` ~ export
@@ -26,3 +27,4 @@ pub use self::ronda::{*};
 pub use self::partida::{*};
 pub use self::jugada::{*};
 pub use self::enco::{*};
+pub use self::chi::{*};
