@@ -1853,9 +1853,7 @@ impl IJugada for IrseAlMazo {
     let mano_en_juego = p.ronda.mano_en_juego as usize;
     let tiradas = &p.ronda.manos[mano_en_juego].cartas_tiradas;
     let n = tiradas.len();
-    let j = tiradas[n-1].jugador.clone();
-    let ultima_tirada_equipo = p.ronda.manojo(&j).jugador.equipo;
-    let solo_mi_equipo_tiro = n == 1 && ultima_tirada_equipo == p.ronda.manojo(&self.jid).jugador.equipo;
+    let solo_mi_equipo_tiro = n == 1 && p.ronda.manojo(&tiradas[n-1].jugador).jugador.equipo == p.ronda.manojo(&self.jid).jugador.equipo;
     let equipo_del_jugador = p.ronda.manojo(&self.jid).jugador.equipo;
     let soy_el_unico_de_mi_equipo = p.ronda.cant_jugadores_en_juego[&equipo_del_jugador] == 1;
     let no_se_puede_ir = es_primera_mano && solo_mi_equipo_tiro && soy_el_unico_de_mi_equipo;
