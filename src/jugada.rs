@@ -21,21 +21,22 @@ pub enum IJugadaId {
 }
 
 pub trait IJugada: Debug {
-  fn id() -> IJugadaId;
+  fn id(&self) -> IJugadaId;
   fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool);
   fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet>;
 }
 
+#[derive(Debug)]
 pub struct TirarCarta {
   pub jid: String,
 	pub carta: Carta
 }
 
-impl TirarCarta {
-  pub fn id() -> IJugadaId {
+impl IJugada for TirarCarta {
+  fn id(&self) -> IJugadaId {
     IJugadaId::JIdTirarCarta
   }
-  pub fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
+  fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
     let mut pkts: Vec<enco::Packet> = Vec::new();
 
     // checkeo si se fue al mazo
@@ -181,7 +182,7 @@ impl TirarCarta {
     (pkts, true)
   }
 
-  pub fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet> {
+  fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet> {
     let mut pkts: Vec<enco::Packet> = Vec::new();
     let (mut pre, ok) = self.ok(p);
     pkts.append(&mut pre);
@@ -293,14 +294,15 @@ impl TirarCarta {
   }
 }
 
+#[derive(Debug)]
 pub struct TocarEnvido {
   pub jid: String,
 }
-impl TocarEnvido {
-  pub fn id() -> IJugadaId {
+impl IJugada for TocarEnvido {
+  fn id(&self) -> IJugadaId {
     IJugadaId::JIdEnvido
   }
-  pub fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
+  fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
     let mut pkts: Vec<enco::Packet> = Vec::new();
     // checkeo flor en juego
     let flor_en_juego = p.ronda.envite.estado >= EstadoEnvite::Flor;
@@ -369,7 +371,7 @@ impl TocarEnvido {
     (pkts, true)
   }
 
-  pub fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet> {
+  fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet> {
     let mut pkts: Vec<enco::Packet> = Vec::new();
     let (mut pre, ok) = self.ok(p);
     pkts.append(&mut pre);
@@ -428,7 +430,9 @@ impl TocarEnvido {
 
     pkts
   }
+}
 
+impl TocarEnvido {
   pub fn eval(&self, p:&mut Partida) -> Vec<enco::Packet> {
     let mut pkts: Vec<enco::Packet> = Vec::new();
     
@@ -454,14 +458,15 @@ impl TocarEnvido {
   }
 }
 
+#[derive(Debug)]
 pub struct TocarRealEnvido {
   pub jid: String,
 }
-impl TocarRealEnvido {
-  pub fn id() -> IJugadaId {
+impl IJugada for TocarRealEnvido {
+  fn id(&self) -> IJugadaId {
     IJugadaId::JIdRealEnvido
   }
-  pub fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
+  fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
     let mut pkts: Vec<enco::Packet> = Vec::new();
     // checkeo flor en juego
     let flor_en_juego = p.ronda.envite.estado >= EstadoEnvite::Flor;
@@ -527,7 +532,7 @@ impl TocarRealEnvido {
     (pkts, true)
   }
 
-  pub fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet> {
+  fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet> {
     let mut pkts: Vec<enco::Packet> = Vec::new();
     let (mut pre, ok) = self.ok(p);
     pkts.append(&mut pre);
@@ -583,15 +588,16 @@ impl TocarRealEnvido {
   }
 }
 
+#[derive(Debug)]
 pub struct TocarFaltaEnvido {
   pub jid: String,
 }
 
-impl TocarFaltaEnvido {
-  pub fn id() -> IJugadaId {
+impl IJugada for TocarFaltaEnvido {
+  fn id(&self) -> IJugadaId {
     IJugadaId::JIdFaltaEnvido
   }
-  pub fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
+  fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
     let mut pkts: Vec<enco::Packet> = Vec::new();
     // ok
     // checkeo flor en juego
@@ -657,7 +663,7 @@ impl TocarFaltaEnvido {
     (pkts, true)
   }
 
-  pub fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet> {
+  fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet> {
     let mut pkts: Vec<enco::Packet> = Vec::new();
     let (mut pre, ok) = self.ok(p);
     pkts.append(&mut pre);
@@ -710,7 +716,9 @@ impl TocarFaltaEnvido {
 
     pkts
   }
+}
 
+impl TocarFaltaEnvido {
   pub fn eval(&self, p:&mut Partida) -> Vec<enco::Packet> {
     let mut pkts: Vec<enco::Packet> = Vec::new();
 
@@ -748,6 +756,7 @@ impl TocarFaltaEnvido {
   }
 }
 
+#[derive(Debug)]
 pub struct CantarFlor {
   pub jid: String,
 }
@@ -822,11 +831,11 @@ fn eval_flor(p: &mut Partida) -> Vec<enco::Packet> {
   pkts
 }
 
-impl CantarFlor {
-  pub fn id() -> IJugadaId {
+impl IJugada for CantarFlor {
+  fn id(&self) -> IJugadaId {
     IJugadaId::JIdFlor
   }
-  pub fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
+  fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
     let mut pkts: Vec<enco::Packet> = Vec::new();
     // manojo dice que puede cantar flor;
     // es esto verdad?
@@ -853,7 +862,7 @@ impl CantarFlor {
     (pkts, true)
   }
 
-  pub fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet> {
+  fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet> {
     let mut pkts: Vec<enco::Packet> = Vec::new();
     let (mut pre, ok) = self.ok(p);
     pkts.append(&mut pre);
@@ -917,14 +926,15 @@ impl CantarFlor {
   }
 }
 
+#[derive(Debug)]
 pub struct CantarContraFlor {
   pub jid: String,
 }
-impl CantarContraFlor {
-  pub fn id() -> IJugadaId {
+impl IJugada for CantarContraFlor {
+  fn id(&self) -> IJugadaId {
     IJugadaId::JIdContraFlor
   }
-  pub fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
+  fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
     let mut pkts: Vec<enco::Packet> = Vec::new();
     let se_fue_al_mazo = p.ronda.manojo(&self.jid).se_fue_al_mazo;
     let contra_flor_habilitada = p.ronda.envite.estado == EstadoEnvite::Flor && p.ronda.mano_en_juego == NumMano::Primera;
@@ -948,7 +958,7 @@ impl CantarContraFlor {
     (pkts, true)
   }
 
-  pub fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet> {
+  fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet> {
     let mut pkts: Vec<enco::Packet> = Vec::new();
     let (mut pre, ok) = self.ok(p);
     pkts.append(&mut pre);
@@ -979,14 +989,15 @@ impl CantarContraFlor {
   }
 }
 
+#[derive(Debug)]
 pub struct CantarContraFlorAlResto {
   pub jid: String,
 }
-impl CantarContraFlorAlResto {
-  pub fn id() -> IJugadaId {
+impl IJugada for CantarContraFlorAlResto {
+  fn id(&self) -> IJugadaId {
     IJugadaId::JIdContraFlorAlResto
   }
-  pub fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
+  fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
     let mut pkts: Vec<enco::Packet> = Vec::new();
     let se_fue_al_mazo = p.ronda.manojo(&self.jid).se_fue_al_mazo;
     let contra_flor_habilitada = (p.ronda.envite.estado == EstadoEnvite::Flor || p.ronda.envite.estado == EstadoEnvite::ContraFlor) && p.ronda.mano_en_juego == NumMano::Primera;
@@ -1010,7 +1021,7 @@ impl CantarContraFlorAlResto {
     (pkts, true)
   }
 
-  pub fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet> {
+  fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet> {
     let mut pkts: Vec<enco::Packet> = Vec::new();
     let (mut pre, ok) = self.ok(p);
     pkts.append(&mut pre);
@@ -1040,14 +1051,15 @@ impl CantarContraFlorAlResto {
   }
 }
 
+#[derive(Debug)]
 pub struct GritarTruco {
   pub jid: String,
 }
-impl GritarTruco {
-  pub fn id() -> IJugadaId {
+impl IJugada for GritarTruco {
+  fn id(&self) -> IJugadaId {
     IJugadaId::JIdTruco
   }
-  pub fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
+  fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
     let mut pkts: Vec<enco::Packet> = Vec::new();
     // checkeos:
     let no_se_fue_al_mazo = !p.ronda.manojo(&self.jid).se_fue_al_mazo;
@@ -1076,7 +1088,7 @@ impl GritarTruco {
     (pkts, true)
   }
 
-  pub fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet> {
+  fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet> {
     let mut pkts: Vec<enco::Packet> = Vec::new();
     let (mut pre, ok) = self.ok(p);
     pkts.append(&mut pre);
@@ -1102,14 +1114,15 @@ impl GritarTruco {
   }
 }
 
+#[derive(Debug)]
 pub struct GritarReTruco {
   pub jid: String,
 }
-impl GritarReTruco {
-  pub fn id() -> IJugadaId {
+impl IJugada for GritarReTruco {
+  fn id(&self) -> IJugadaId {
     IJugadaId::JIdTirarCarta
   }
-  pub fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
+  fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
     let mut pkts: Vec<enco::Packet> = Vec::new();
 
     let no_se_fue_al_mazo = !p.ronda.manojo(&self.jid).se_fue_al_mazo;
@@ -1147,7 +1160,7 @@ impl GritarReTruco {
     (pkts, true)
   }
 
-  pub fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet> {
+  fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet> {
     let mut pkts: Vec<enco::Packet> = Vec::new();
     let (mut pre, ok) = self.ok(p);
     pkts.append(&mut pre);
@@ -1173,14 +1186,15 @@ impl GritarReTruco {
   }
 }
 
+#[derive(Debug)]
 pub struct GritarVale4 {
   pub jid: String,
 }
-impl GritarVale4 {
-  pub fn id() -> IJugadaId {
+impl IJugada for GritarVale4 {
+  fn id(&self) -> IJugadaId {
     IJugadaId::JIdVale4
   }
-  pub fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
+  fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
     let mut pkts: Vec<enco::Packet> = Vec::new();
     let no_se_fue_al_mazo = !p.ronda.manojo(&self.jid).se_fue_al_mazo;
     let no_se_esta_jugando_el_envite = p.ronda.envite.estado <= EstadoEnvite::NoCantadoAun;
@@ -1213,7 +1227,7 @@ impl GritarVale4 {
     (pkts, true)
   }
 
-  pub fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet> {
+  fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet> {
     let mut pkts: Vec<enco::Packet> = Vec::new();
     let (mut pre, ok) = self.ok(p);
     pkts.append(&mut pre);
@@ -1239,14 +1253,15 @@ impl GritarVale4 {
   }
 }
 
+#[derive(Debug)]
 pub struct ResponderQuiero {
   pub jid: String,
 }
-impl ResponderQuiero {
-  pub fn id() -> IJugadaId {
+impl IJugada for ResponderQuiero {
+  fn id(&self) -> IJugadaId {
     IJugadaId::JIdQuiero
   }
-  pub fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
+  fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
     let mut pkts: Vec<enco::Packet> = Vec::new();
     let se_fue_al_mazo = p.ronda.manojo(&self.jid).se_fue_al_mazo;
     if se_fue_al_mazo {
@@ -1368,7 +1383,7 @@ impl ResponderQuiero {
     (pkts, true)
   }
 
-  pub fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet> {
+  fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet> {
     let mut pkts: Vec<enco::Packet> = Vec::new();
     let (mut pre, ok) = self.ok(p);
     pkts.append(&mut pre);
@@ -1491,14 +1506,15 @@ impl ResponderQuiero {
   }
 }
 
+#[derive(Debug)]
 pub struct ResponderNoQuiero {
   pub jid: String,
 }
-impl ResponderNoQuiero {
-  pub fn id() -> IJugadaId {
+impl IJugada for ResponderNoQuiero {
+  fn id(&self) -> IJugadaId {
     IJugadaId::JIdNoQuiero
   }
-  pub fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
+  fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
     let mut pkts: Vec<enco::Packet> = Vec::new();
     
     let se_fue_al_mazo = p.ronda.manojo(&self.jid).se_fue_al_mazo;
@@ -1597,7 +1613,7 @@ impl ResponderNoQuiero {
     (pkts, true)
   }
 
-  pub fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet> {
+  fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet> {
     let mut pkts: Vec<enco::Packet> = Vec::new();
     let (mut pre, ok) = self.ok(p);
     pkts.append(&mut pre);
@@ -1762,14 +1778,15 @@ impl ResponderNoQuiero {
   }
 }
 
+#[derive(Debug)]
 pub struct IrseAlMazo {
   pub jid: String,
 }
-impl IrseAlMazo {
-  pub fn id() -> IJugadaId {
+impl IJugada for IrseAlMazo {
+  fn id(&self) -> IJugadaId {
     IJugadaId::JIdMazo
   }
-  pub fn ok(&self, p:&mut Partida) -> (Vec<enco::Packet>, bool) {
+  fn ok(&self, p:&Partida) -> (Vec<enco::Packet>, bool) {
     let mut pkts: Vec<enco::Packet> = Vec::new();
     let ya_se_fue_al_mazo = p.ronda.manojo(&self.jid).se_fue_al_mazo;
     let ya_tiro_todas_sus_cartas = p.ronda.manojo(&self.jid).get_cant_cartas_tiradas() == 3;
@@ -1832,7 +1849,9 @@ impl IrseAlMazo {
     // por como esta hecho el algoritmo EvaluarMano:
 
     let es_primera_mano = p.ronda.mano_en_juego == NumMano::Primera;
-    let tiradas = &p.ronda.get_mano_actual().cartas_tiradas;
+    // let tiradas = &p.ronda.get_mano_actual().cartas_tiradas;
+    let mano_en_juego = p.ronda.mano_en_juego as usize;
+    let tiradas = &p.ronda.manos[mano_en_juego].cartas_tiradas;
     let n = tiradas.len();
     let j = tiradas[n-1].jugador.clone();
     let ultima_tirada_equipo = p.ronda.manojo(&j).jugador.equipo;
@@ -1859,7 +1878,7 @@ impl IrseAlMazo {
     (pkts, true)
   }
 
-  pub fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet> {
+  fn hacer(&self, p:&mut Partida) -> Vec<enco::Packet> {
     let mut pkts: Vec<enco::Packet> = Vec::new();
     let (mut pre, ok) = self.ok(p);
     pkts.append(&mut pre);
