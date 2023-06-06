@@ -15,8 +15,8 @@ impl NumMano {
     (*self as usize) + 1
   }
 
-  pub fn inc(&self) -> NumMano {
-    match self {
+  pub fn inc(&mut self) {
+    *self = match *self {
       NumMano::Primera => NumMano::Segunda,
       NumMano::Segunda => NumMano::Tercera,
       _ => unreachable!()
