@@ -1,10 +1,14 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use crate::equipo::{Equipo};
-use crate::{EstadoEnvite, EstadoTruco, Palo};
+use crate::{EstadoEnvite, EstadoTruco, Palo, Carta, TirarCarta};
 use crate::ronda::{Ronda};
 use crate::enco;
 use crate::mano::{NumMano, Resultado};
+use crate::{IJugada, IrseAlMazo, TocarEnvido, TocarRealEnvido, TocarFaltaEnvido, 
+  CantarFlor, CantarContraFlor, CantarContraFlorAlResto, GritarTruco, 
+  GritarReTruco, GritarVale4, ResponderQuiero, ResponderNoQuiero };
+use regex::Regex;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Partida{
@@ -593,5 +597,66 @@ impl Partida {
     pkts
   }
 
+  fn parse(&self, cmd: &str) -> Result<Box<dyn IJugada>, &'static str> {
+    if self.terminada() {
+      return Err("la partida ya termino")  
+    }
+
+    let patt = r"(?i)^([a-zA-Z0-9_-]+) ([a-zA-Z0-9_-]+)$";
+    let jugada_simple_rg = Regex::new(patt).unwrap();
+    if let Some(x) = jugada_simple_rg.captures(cmd) {
+      let jugador = x.get(1).unwrap().as_str();
+      let jugada = x.get(2).unwrap().as_str();
+      let m = self.ronda.manojo(jugador);
+      let jugada: Box<dyn IJugada> = match jugada {
+        "envido" => Box::new(TocarEnvido{jid: m.jugador.id.clone()}), 
+        "real-envido" => Box::new(TocarRealEnvido{jid: m.jugador.id.clone()}), 
+        "falta-envido" => Box::new(TocarFaltaEnvido{jid: m.jugador.id.clone()}), 
+        "flor" => Box::new(CantarFlor{jid: m.jugador.id.clone()}), 
+        "contra-flor" => Box::new(CantarContraFlor{jid: m.jugador.id.clone()}), 
+        "contra-flor-al-resto" => Box::new(CantarContraFlorAlResto{jid: m.jugador.id.clone()}), 
+        "truco" => Box::new(GritarTruco{jid: m.jugador.id.clone()}), 
+        "re-truco" => Box::new(GritarReTruco{jid: m.jugador.id.clone()}), 
+        "vale-4" => Box::new(GritarVale4{jid: m.jugador.id.clone()}), 
+        "quiero" => Box::new(ResponderQuiero{jid: m.jugador.id.clone()}), 
+        "no-quiero" => Box::new(ResponderNoQuiero{jid: m.jugador.id.clone()}), 
+        "mazo" => Box::new(IrseAlMazo{jid: m.jugador.id.clone()}),
+        _ => unreachable!()
+      };
+
+      return Ok(jugada);
+    }
+
+    let patt = r"(?i)^([a-zA-Z0-9_-]+) (1|2|3|4|5|6|7|10|11|12) (oro|copa|basto|espada)$";
+    let jugada_tirada_rg = Regex::new(patt).unwrap();
+    if let Some(x) = jugada_tirada_rg.captures(cmd) {
+      let jugador = x.get(1).unwrap().as_str();
+      let valor = x.get(2).unwrap().as_str();
+      let palo = x.get(3).unwrap().as_str();
+      let _m = self.ronda.manojo(jugador);
+      let c = Carta::new(
+        valor.parse::<i32>().unwrap() as usize,
+        palo
+      ).unwrap();
+      let t = TirarCarta{jid: jugador.to_string(), carta: c};
+      return Ok(Box::new(t));
+    }
+    
+    Err("algo salio mal")
+  }
+
+  pub fn cmd(&mut self, cmd: &str) -> Result<Vec<enco::Packet>, &str> {
+    if let Ok(jugada) = self.parse(cmd) {
+      let mut pkts = jugada.hacer(self);
+      if self.terminada() {
+        if self.verbose {
+          pkts.append(&mut self.bye_bye());
+        }
+      }
+      return Ok(pkts);
+    }
+    Err("algo salio mal")
+  }
 
 }
+

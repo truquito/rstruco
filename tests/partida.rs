@@ -6,3 +6,21 @@ fn partida_test(){
   let p: Partida = serde_json::from_str(json).unwrap();
   println!("{:?}", p)
 }
+
+#[test]
+fn cmd_test(){
+  
+  let mut p = Partida::new(
+    20, 
+    vec!["alice".to_string()],
+    vec!["bob".to_string()],
+    false,
+  ).unwrap();
+  
+  println!("{:?}", p);
+  let input = "alice truco".to_string();
+  p.cmd(&input).unwrap();
+
+  println!("{:?}", p);
+  println!("{}", 33)
+}
