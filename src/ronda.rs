@@ -411,12 +411,12 @@ impl Ronda {
                   }
                 )
               });
-              jidx = i;
-              ya_dijeron[i] = true;
-              todavia_no_dijeron_son_mejores = false;
-              // se "resetea" el bucle
-              i = self.get_sig(self.el_mano);
             }
+            jidx = i;
+            ya_dijeron[i] = true;
+            todavia_no_dijeron_son_mejores = false;
+            // se "resetea" el bucle
+            i = self.get_sig(self.el_mano);
           } else {
             i = self.get_sig(i);
           }
