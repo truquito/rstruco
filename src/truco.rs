@@ -30,7 +30,7 @@ impl fmt::Display for EstadoTruco {
 
 impl EstadoTruco {
   pub fn es_truco_respondible(&self) -> bool {
-    [EstadoTruco::Truco, EstadoTruco::ReTruco, EstadoTruco::Vale4Querido].contains(&self)
+    [EstadoTruco::Truco, EstadoTruco::ReTruco, EstadoTruco::Vale4].contains(&self)
   }
 }
 
