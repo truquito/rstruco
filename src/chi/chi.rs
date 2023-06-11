@@ -33,7 +33,7 @@ pub fn random_action_chis(chis: &Vec<Vec<Box<dyn IJugada>>>) -> (usize,usize) {
       .filter(|(_ix,chi)| chi.len() > 0)
       .map(|(ix, _chi)| ix)
       .collect();
-
+    
   let rmix = *habilitados.choose(&mut rand::thread_rng()).unwrap();
   let raix = rand::thread_rng().gen_range(0..chis[rmix].len());
 
@@ -62,13 +62,16 @@ pub fn chi(p:&Partida, m:&Manojo, allow_mazo:bool) -> Vec<Box<dyn IJugada>> {
     // respuestas
     Box::new(ResponderQuiero{jid: m.jugador.id.clone()}),
     Box::new(ResponderNoQuiero{jid: m.jugador.id.clone()}),
+    // mazo
+    Box::new(IrseAlMazo{jid: m.jugador.id.clone()})
   ];
 
   res = res.into_iter().filter(|j| j.ok(p).1).collect();
 
-  let mazo = Box::new(IrseAlMazo{jid: m.jugador.id.clone()});
-  if allow_mazo && mazo.ok(p).1 {
-    res.push(mazo);
+  if !allow_mazo && res.len() > 0 {
+    if res.last().unwrap().id() == IJugadaId::JIdMazo {
+      res.truncate(res.len() - 1);
+    }
   }
  
   res
@@ -82,7 +85,7 @@ pub fn chis(p:&Partida, allow_mazo:bool) -> Vec<Vec<Box<dyn IJugada>>> {
 }
 
 pub fn random_action(p:&Partida, allow_mazo:bool) -> Box<dyn IJugada> {
-  let mut chis = chis(p, allow_mazo);
-  let (rmix, raix) = random_action_chis(&chis);
-  chis.remove(rmix).remove(raix)
+  let mut chiss = chis(p, allow_mazo);
+  let (rmix, raix) = random_action_chis(&chiss);
+  chiss.remove(rmix).remove(raix)
 }

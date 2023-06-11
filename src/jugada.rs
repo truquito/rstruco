@@ -4,6 +4,7 @@ use crate::{enco, EstadoEnvite, NumMano, EstadoTruco, Resultado};
 use crate::carta::{Carta};
 use crate::equipo::{Equipo};
 
+#[derive(PartialEq)]
 pub enum IJugadaId {
   JIdTirarCarta = 0,
   JIdEnvido = 1,

@@ -298,16 +298,31 @@ impl Partida {
     // asi que es seguro acceder a los indices 0 y 1 en:
     // self.ronda.manos[0] & self.ronda.manos[1]
 
-    let cant_manos_ganadas: HashMap<Equipo, usize> =
+    let cant_manos_ganadas: HashMap<Equipo, usize> = HashMap::from([
+      (Equipo::Rojo, 0),
+      (Equipo::Azul, 0),
+    ]);
+
+    let cant_manos_ganadas = 
       self.ronda.manos[..mano_actual+1]
         .iter()
-        .fold(HashMap::new(), |mut map, c| {
-            if c.resultado != Resultado::Empardada {
-              let e = self.ronda.manojo(&c.ganador).jugador.equipo;
-              *map.entry(e).or_insert(0) += 1;
-            }
-            map
+        .fold(cant_manos_ganadas, |mut acc, c| {
+          if c.resultado != Resultado::Empardada {
+            let e = self.ronda.manojo(&c.ganador).jugador.equipo;
+            *acc.entry(e).or_insert(0) += 1;
+          }
+          acc
         });
+
+    // let cant_rojo = self.ronda.manos[..mano_actual+1]
+    //   .iter().filter(|&m| m.resultado == Resultado::GanoRojo).count();
+    // let cant_azul = self.ronda.manos[..mano_actual+1]
+    //   .iter().filter(|&m| m.resultado == Resultado::GanoAzul).count();
+    
+    // let cant_manos_ganadas: HashMap<Equipo, usize> = HashMap::from([
+    //   (Equipo::Rojo, cant_rojo),
+    //   (Equipo::Azul, cant_azul),
+    // ]);
 
     let hay_empate = cant_manos_ganadas[&Equipo::Rojo] == cant_manos_ganadas[&Equipo::Azul];
     let parda_primera = self.ronda.manos[0].resultado == Resultado::Empardada;
