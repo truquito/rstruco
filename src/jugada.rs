@@ -386,9 +386,14 @@ impl IJugada for TocarEnvido {
     let el_envido_esta_primero = p.ronda.truco.estado == EstadoTruco::Truco && !ya_estabamos_en_envido && es_primera_mano;
 
     if el_envido_esta_primero {
+      // actualizacion 23/9/23: se desactiva este comportamiento debido a inconsistencias
+		  // con el simulador-parcial (a.k.a., la `Perspectiva`)
+      // pero se mantiene el mensaje
+
       // deshabilito el truco
-      p.ronda.truco.estado = EstadoTruco::NoCantado;
-      p.ronda.truco.cantado_por = "".to_string();
+      // p.ronda.truco.estado = EstadoTruco::NoCantado;
+      // p.ronda.truco.cantado_por = "".to_string();
+
       if p.verbose {
         pkts.push(enco::Packet{
           destination: vec!["ALL".to_string()],
@@ -547,9 +552,14 @@ impl IJugada for TocarRealEnvido {
     let el_envido_esta_primero = p.ronda.truco.estado == EstadoTruco::Truco && !ya_estabamos_en_envido && es_primera_mano;
 
     if el_envido_esta_primero {
+      // actualizacion 23/9/23: se desactiva este comportamiento debido a inconsistencias
+		  // con el simulador-parcial (a.k.a., la `Perspectiva`)
+      // pero se mantiene el mensaje
+
       // deshabilito el truco
-      p.ronda.truco.estado = EstadoTruco::NoCantado;
-      p.ronda.truco.cantado_por = "".to_string();
+      // p.ronda.truco.estado = EstadoTruco::NoCantado;
+      // p.ronda.truco.cantado_por = "".to_string();
+      
       if p.verbose {
         pkts.push(enco::Packet{
           destination: vec!["ALL".to_string()],
@@ -678,9 +688,14 @@ impl IJugada for TocarFaltaEnvido {
     let el_envido_esta_primero = p.ronda.truco.estado == EstadoTruco::Truco && !ya_estabamos_en_envido && es_primera_mano;
 
     if el_envido_esta_primero {
+      // actualizacion 23/9/23: se desactiva este comportamiento debido a inconsistencias
+		  // con el simulador-parcial (a.k.a., la `Perspectiva`)
+      // pero se mantiene el mensaje
+
       // deshabilito el truco
-      p.ronda.truco.estado = EstadoTruco::NoCantado;
-      p.ronda.truco.cantado_por = "".to_string();
+      // p.ronda.truco.estado = EstadoTruco::NoCantado;
+      // p.ronda.truco.cantado_por = "".to_string();
+      
       if p.verbose {
         pkts.push(enco::Packet{
           destination: vec!["ALL".to_string()],
@@ -884,8 +899,25 @@ impl IJugada for CantarFlor {
       });
     }
 
-    p.ronda.truco.cantado_por = "".to_string();
-	  p.ronda.truco.estado = EstadoTruco::NoCantado;
+    // actualizacion 23/9/23: se desactiva este comportamiento debido a inconsistencias
+    // con el simulador-parcial (a.k.a., la `Perspectiva`)
+    // pero se mantiene el mensaje
+
+    // p.ronda.truco.cantado_por = "".to_string();
+	  // p.ronda.truco.estado = EstadoTruco::NoCantado;
+
+    if p.verbose {
+      pkts.push(enco::Packet{
+        destination: vec!["ALL".to_string()],
+        message: enco::Message(
+          enco::Content::ElEnvidoEstaPrimero {
+            autor: self.jid.clone(),
+          }
+        )
+      });
+    }
+
+
 
     // y me elimino de los que no-cantaron
     p.ronda.envite.canto_flor(&self.jid);
